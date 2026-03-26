@@ -133,7 +133,7 @@ export default function StoragePage() {
         <select
           style={{
             height: 38,
-            padding: "0 10px",
+            padding: "0 1px",
             borderRadius: 8,
             border: "1px solid var(--border)",
             background: "var(--bg)",
@@ -157,7 +157,7 @@ export default function StoragePage() {
         <select
           style={{
             height: 38,
-            padding: "0 10px",
+            padding: "0 1px",
             borderRadius: 8,
             border: "1px solid var(--border)",
             background: "var(--bg)",
@@ -239,14 +239,12 @@ export default function StoragePage() {
         open={addDrawer}
         onClose={() => setAddDrawer(false)}
         onSaved={() => setRefresh((r) => r + 1)}
-        defaultExchange={defaultExchange}
       />
       <StorageDrawer
         open={!!editItem}
         onClose={() => setEditItem(null)}
         onSaved={() => setRefresh((r) => r + 1)}
         item={editItem}
-        defaultExchange={defaultExchange}
       />
       {actionItem && (
         <ActionDrawer
@@ -254,6 +252,7 @@ export default function StoragePage() {
           onClose={() => setActionItem(null)}
           onSaved={() => setRefresh((r) => r + 1)}
           item={actionItem}
+          defaultExchange={defaultExchange}
         />
       )}
     </div>

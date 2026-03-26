@@ -1,5 +1,6 @@
 "use client";
 
+import { useState, useEffect } from "react";
 import {
   Users,
   Package,
@@ -8,87 +9,132 @@ import {
   TrendingUp,
   AlertTriangle,
   CheckCircle,
-  XCircle,
+  FileText,
 } from "lucide-react";
 
-const stats = [
-  {
-    title: "الموظفين",
-    value: "24",
-    sub: "21 نشط · 3 إجازة",
-    icon: Users,
-    color: "#3b82f6",
-    bg: "rgba(59,130,246,0.08)",
-  },
-  {
-    title: "الزبائن",
-    value: "318",
-    sub: "285 نشط · 33 موقوف",
-    icon: Wifi,
-    color: "#f97316",
-    bg: "rgba(249,115,22,0.08)",
-  },
-  {
-    title: "النقاط",
-    value: "47",
-    sub: "41 متصل · 6 غير متصل",
-    icon: MapPin,
-    color: "#22c55e",
-    bg: "rgba(34,197,94,0.08)",
-  },
-  {
-    title: "التخزين",
-    value: "132",
-    sub: "8 مخزون منخفض",
-    icon: Package,
-    color: "#a855f7",
-    bg: "rgba(168,85,247,0.08)",
-  },
-];
+const TYPE_LABELS: Record<string, string> = {
+  salary_added:      "إضافة راتب",
+  loan_added:        "إضافة سلفة",
+  stock_in:          "إدخال مخزون",
+  stock_out:         "إخراج مخزون",
+  consume:           "استهلاك",
+  borrow:            "استعارة",
+  return:            "إرجاع",
+  point_added:       "إضافة نقطة",
+  point_deleted:     "حذف نقطة",
+  customer_added:    "إضافة زبون",
+  customer_suspended:"إيقاف زبون",
+  customer_restored: "استعادة زبون",
+  customer_deleted:  "حذف زبون",
+  sub_added:         "إضافة اشتراك",
+  sub_deleted:       "حذف اشتراك",
+};
 
-const recentActivity = [
-  {
-    icon: CheckCircle,
-    color: "#22c55e",
-    text: "تم تجديد اشتراك الزبون أحمد محمد",
-    time: "منذ 5 دقائق",
-  },
-  {
-    icon: XCircle,
-    color: "#ef4444",
-    text: "نقطة الشبكة المنطقة الشمالية انقطع اتصالها",
-    time: "منذ 18 دقيقة",
-  },
-  {
-    icon: AlertTriangle,
-    color: "#f97316",
-    text: "مخزون كابل الشبكة أوشك على النفاد",
-    time: "منذ ساعة",
-  },
-  {
-    icon: CheckCircle,
-    color: "#22c55e",
-    text: "تمت إضافة موظف جديد: خالد العمر",
-    time: "منذ ساعتين",
-  },
-  {
-    icon: CheckCircle,
-    color: "#3b82f6",
-    text: "تم دفع راتب شهر مارس لـ 24 موظف",
-    time: "منذ 3 ساعات",
-  },
-  {
-    icon: XCircle,
-    color: "#ef4444",
-    text: "تم إيقاف اشتراك 5 زبائن تلقائياً",
-    time: "منذ 5 ساعات",
-  },
-];
+const SECTION_META: Record<string, { icon: any; color: string }> = {
+  employees: { icon: Users,          color: "#3b82f6" },
+  storage:   { icon: Package,        color: "#22c55e" },
+  points:    { icon: MapPin,         color: "#f97316" },
+  customers: { icon: Wifi,           color: "#8b5cf6" },
+  problems:  { icon: AlertTriangle,  color: "#ef4444" },
+  finance:   { icon: TrendingUp,     color: "#eab308" },
+  documents: { icon: FileText,       color: "#06b6d4" },
+};
+
+function relativeTime(date: string) {
+  const diff = Date.now() - new Date(date).getTime();
+  const m = Math.floor(diff / 60000);
+  if (m < 1)  return "الآن";
+  if (m < 60) return `منذ ${m} دقيقة`;
+  const h = Math.floor(m / 60);
+  if (h < 24) return `منذ ${h} ساعة`;
+  return `منذ ${Math.floor(h / 24)} يوم`;
+}
+
+function SkeletonCard() {
+  return (
+    <div
+      style={{
+        background: "var(--surface)",
+        border: "1px solid var(--border)",
+        borderRadius: 14,
+        padding: "20px",
+        display: "flex",
+        flexDirection: "column",
+        gap: 14,
+      }}
+    >
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+        <div style={{ width: 60, height: 14, borderRadius: 6, background: "var(--border)" }} />
+        <div style={{ width: 38, height: 38, borderRadius: 10, background: "var(--border)" }} />
+      </div>
+      <div>
+        <div style={{ width: 56, height: 30, borderRadius: 6, background: "var(--border)", marginBottom: 8 }} />
+        <div style={{ width: 100, height: 12, borderRadius: 6, background: "var(--border)" }} />
+      </div>
+    </div>
+  );
+}
 
 export default function DashboardPage() {
+  const [data, setData] = useState<any>(null);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    fetch("/api/dashboard")
+      .then((r) => r.json())
+      .then((d) => { setData(d.data); setLoading(false); });
+  }, []);
+
+  const e = data?.employees  ?? {};
+  const c = data?.customers  ?? {};
+  const p = data?.points     ?? {};
+  const s = data?.storage    ?? {};
+  const logs: any[] = data?.recentLogs ?? [];
+
+  const statCards = [
+    {
+      title: "الموظفين",
+      value: e.total ?? 0,
+      sub:   `${e.active ?? 0} نشط · ${e.onLeave ?? 0} إجازة`,
+      icon:  Users,
+      color: "#3b82f6",
+      bg:    "rgba(59,130,246,0.08)",
+    },
+    {
+      title: "الزبائن",
+      value: c.total ?? 0,
+      sub:   `${c.active ?? 0} نشط · ${c.suspended ?? 0} موقوف`,
+      icon:  Wifi,
+      color: "#f97316",
+      bg:    "rgba(249,115,22,0.08)",
+    },
+    {
+      title: "النقاط",
+      value: p.total ?? 0,
+      sub:   `${p.online ?? 0} متصل · ${p.offline ?? 0} غير متصل`,
+      icon:  MapPin,
+      color: "#22c55e",
+      bg:    "rgba(34,197,94,0.08)",
+    },
+    {
+      title: "التخزين",
+      value: s.total ?? 0,
+      sub:   `${s.lowStock ?? 0} منخفض · ${s.outOfStock ?? 0} نفد`,
+      icon:  Package,
+      color: "#a855f7",
+      bg:    "rgba(168,85,247,0.08)",
+    },
+  ];
+
+  const statusBars = [
+    { label: "الزبائن النشطون",    value: c.active ?? 0, total: c.total ?? 0, color: "#f97316" },
+    { label: "النقاط المتصلة",     value: p.online ?? 0, total: p.total ?? 0, color: "#22c55e" },
+    { label: "الموظفون النشطون",   value: e.active ?? 0, total: e.total ?? 0, color: "#3b82f6" },
+  ];
+
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: 24 }}>
-      {/* ── Header ── */}
+      {/* Header */}
       <div>
         <h1
           className="font-title font-bold"
@@ -101,7 +147,7 @@ export default function DashboardPage() {
         </p>
       </div>
 
-      {/* ── Stats Grid ── */}
+      {/* Stat Cards */}
       <div
         style={{
           display: "grid",
@@ -109,74 +155,59 @@ export default function DashboardPage() {
           gap: 16,
         }}
       >
-        {stats.map(({ title, value, sub, icon: Icon, color, bg }) => (
-          <div
-            key={title}
-            style={{
-              background: "var(--surface)",
-              border: "1px solid var(--border)",
-              borderRadius: 14,
-              padding: "20px 20px",
-              display: "flex",
-              flexDirection: "column",
-              gap: 14,
-              transition: "box-shadow 0.2s",
-            }}
-            onMouseEnter={(e) =>
-              (e.currentTarget.style.boxShadow = "0 4px 20px rgba(0,0,0,0.07)")
-            }
-            onMouseLeave={(e) => (e.currentTarget.style.boxShadow = "none")}
-          >
-            <div
-              style={{
-                display: "flex",
-                alignItems: "center",
-                justifyContent: "space-between",
-              }}
-            >
-              <span
-                className="font-title font-semibold"
-                style={{ fontSize: 13, color: "var(--text-muted)" }}
-              >
-                {title}
-              </span>
+        {loading
+          ? Array.from({ length: 4 }).map((_, i) => <SkeletonCard key={i} />)
+          : statCards.map(({ title, value, sub, icon: Icon, color, bg }) => (
               <div
+                key={title}
                 style={{
-                  width: 38,
-                  height: 38,
-                  borderRadius: 10,
-                  background: bg,
+                  background: "var(--surface)",
+                  border: "1px solid var(--border)",
+                  borderRadius: 14,
+                  padding: "20px",
                   display: "flex",
-                  alignItems: "center",
-                  justifyContent: "center",
+                  flexDirection: "column",
+                  gap: 14,
+                  transition: "box-shadow 0.2s",
                 }}
+                onMouseEnter={(e) =>
+                  (e.currentTarget.style.boxShadow = "0 4px 20px rgba(0,0,0,0.07)")
+                }
+                onMouseLeave={(e) => (e.currentTarget.style.boxShadow = "none")}
               >
-                <Icon size={18} style={{ color }} />
+                <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+                  <span
+                    className="font-title font-semibold"
+                    style={{ fontSize: 13, color: "var(--text-muted)" }}
+                  >
+                    {title}
+                  </span>
+                  <div
+                    style={{
+                      width: 38, height: 38, borderRadius: 10,
+                      background: bg,
+                      display: "flex", alignItems: "center", justifyContent: "center",
+                    }}
+                  >
+                    <Icon size={18} style={{ color }} />
+                  </div>
+                </div>
+                <div>
+                  <div
+                    className="font-title font-bold"
+                    style={{ fontSize: 30, color: "var(--text)", lineHeight: 1 }}
+                  >
+                    {value}
+                  </div>
+                  <div style={{ fontSize: 12, color: "var(--text-muted)", marginTop: 6 }}>
+                    {sub}
+                  </div>
+                </div>
               </div>
-            </div>
-
-            <div>
-              <div
-                className="font-title font-bold"
-                style={{ fontSize: 30, color: "var(--text)", lineHeight: 1 }}
-              >
-                {value}
-              </div>
-              <div
-                style={{
-                  fontSize: 12,
-                  color: "var(--text-muted)",
-                  marginTop: 6,
-                }}
-              >
-                {sub}
-              </div>
-            </div>
-          </div>
-        ))}
+            ))}
       </div>
 
-      {/* ── Bottom Row ── */}
+      {/* Bottom Row */}
       <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16 }}>
         {/* Recent Activity */}
         <div
@@ -197,65 +228,64 @@ export default function DashboardPage() {
             }}
           >
             <TrendingUp size={16} style={{ color: "#f97316" }} />
-            <span
-              className="font-title font-semibold"
-              style={{ fontSize: 14, color: "var(--text)" }}
-            >
+            <span className="font-title font-semibold" style={{ fontSize: 14, color: "var(--text)" }}>
               آخر النشاطات
             </span>
           </div>
-          <div
-            style={{
-              padding: "8px 12px",
-              display: "flex",
-              flexDirection: "column",
-              gap: 2,
-            }}
-          >
-            {recentActivity.map((item, i) => (
-              <div
-                key={i}
-                style={{
-                  display: "flex",
-                  alignItems: "center",
-                  gap: 10,
-                  padding: "9px 8px",
-                  borderRadius: 8,
-                  transition: "background 0.15s",
-                  cursor: "default",
-                }}
-                onMouseEnter={(e) =>
-                  (e.currentTarget.style.background = "var(--bg)")
-                }
-                onMouseLeave={(e) =>
-                  (e.currentTarget.style.background = "transparent")
-                }
-              >
-                <item.icon
-                  size={15}
-                  style={{ color: item.color, flexShrink: 0 }}
-                />
-                <span
-                  className="flex-1 truncate"
-                  style={{ fontSize: 13, color: "var(--text)" }}
-                >
-                  {item.text}
-                </span>
-                <span
-                  style={{
-                    fontSize: 11,
-                    color: "var(--text-muted)",
-                    whiteSpace: "nowrap",
-                  }}
-                >
-                  {item.time}
-                </span>
-              </div>
-            ))}
+          <div style={{ padding: "8px 12px", display: "flex", flexDirection: "column", gap: 2 }}>
+            {loading
+              ? Array.from({ length: 6 }).map((_, i) => (
+                  <div key={i} style={{ padding: "9px 8px", display: "flex", gap: 10, alignItems: "center" }}>
+                    <div style={{ width: 16, height: 16, borderRadius: 99, background: "var(--border)", flexShrink: 0 }} />
+                    <div style={{ flex: 1, height: 12, borderRadius: 6, background: "var(--border)" }} />
+                    <div style={{ width: 50, height: 10, borderRadius: 6, background: "var(--border)" }} />
+                  </div>
+                ))
+              : logs.length === 0
+              ? (
+                  <p style={{ padding: "20px 8px", fontSize: 13, color: "var(--text-muted)", fontFamily: "'Tajawal', sans-serif", textAlign: "center" }}>
+                    لا توجد نشاطات بعد
+                  </p>
+                )
+              : logs.map((log) => {
+                  const meta = SECTION_META[log.section] ?? { icon: CheckCircle, color: "#6b7280" };
+                  const Icon = meta.icon;
+                  return (
+                    <div
+                      key={log._id}
+                      style={{
+                        display: "flex", alignItems: "center", gap: 10,
+                        padding: "9px 8px", borderRadius: 8,
+                        transition: "background 0.15s", cursor: "default",
+                      }}
+                      onMouseEnter={(e) => (e.currentTarget.style.background = "var(--bg)")}
+                      onMouseLeave={(e) => (e.currentTarget.style.background = "transparent")}
+                    >
+                      <Icon size={15} style={{ color: meta.color, flexShrink: 0 }} />
+                      <span
+                        style={{
+                          flex: 1, fontSize: 13, color: "var(--text)",
+                          fontFamily: "'Tajawal', sans-serif",
+                          overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap",
+                        }}
+                      >
+                        {TYPE_LABELS[log.type] ?? log.type}
+                        {log.performedBy?.name && (
+                          <span style={{ color: "var(--text-muted)", fontSize: 12 }}>
+                            {" · "}{log.performedBy.name}
+                          </span>
+                        )}
+                      </span>
+                      <span style={{ fontSize: 11, color: "var(--text-muted)", whiteSpace: "nowrap" }}>
+                        {relativeTime(log.date)}
+                      </span>
+                    </div>
+                  );
+                })}
           </div>
         </div>
 
-        {/* Quick status */}
+        {/* System Status */}
         <div
           style={{
             background: "var(--surface)",
@@ -274,79 +304,45 @@ export default function DashboardPage() {
             }}
           >
             <CheckCircle size={16} style={{ color: "#22c55e" }} />
-            <span
-              className="font-title font-semibold"
-              style={{ fontSize: 14, color: "var(--text)" }}
-            >
+            <span className="font-title font-semibold" style={{ fontSize: 14, color: "var(--text)" }}>
               حالة النظام
             </span>
           </div>
-          <div
-            style={{
-              padding: "16px 20px",
-              display: "flex",
-              flexDirection: "column",
-              gap: 14,
-            }}
-          >
-            {[
-              {
-                label: "الزبائن النشطون",
-                value: 285,
-                total: 318,
-                color: "#f97316",
-              },
-              {
-                label: "النقاط المتصلة",
-                value: 41,
-                total: 47,
-                color: "#22c55e",
-              },
-              {
-                label: "الموظفون النشطون",
-                value: 21,
-                total: 24,
-                color: "#3b82f6",
-              },
-            ].map(({ label, value, total, color }) => {
-              const pct = Math.round((value / total) * 100);
-              return (
-                <div key={label}>
-                  <div
-                    style={{
-                      display: "flex",
-                      justifyContent: "space-between",
-                      marginBottom: 7,
-                    }}
-                  >
-                    <span style={{ fontSize: 13, color: "var(--text)" }}>
-                      {label}
-                    </span>
-                    <span style={{ fontSize: 12, color: "var(--text-muted)" }}>
-                      {value} / {total}
-                    </span>
+          <div style={{ padding: "16px 20px", display: "flex", flexDirection: "column", gap: 16 }}>
+            {loading
+              ? Array.from({ length: 3 }).map((_, i) => (
+                  <div key={i}>
+                    <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 8 }}>
+                      <div style={{ width: 100, height: 12, borderRadius: 6, background: "var(--border)" }} />
+                      <div style={{ width: 40, height: 12, borderRadius: 6, background: "var(--border)" }} />
+                    </div>
+                    <div style={{ height: 7, borderRadius: 999, background: "var(--border)" }} />
                   </div>
-                  <div
-                    style={{
-                      height: 7,
-                      borderRadius: 999,
-                      background: "var(--border)",
-                      overflow: "hidden",
-                    }}
-                  >
-                    <div
-                      style={{
-                        height: "100%",
-                        width: `${pct}%`,
-                        borderRadius: 999,
-                        background: color,
-                        transition: "width 0.6s ease",
-                      }}
-                    />
-                  </div>
-                </div>
-              );
-            })}
+                ))
+              : statusBars.map(({ label, value, total, color }) => {
+                  const pct = total > 0 ? Math.round((value / total) * 100) : 0;
+                  return (
+                    <div key={label}>
+                      <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 7 }}>
+                        <span style={{ fontSize: 13, color: "var(--text)", fontFamily: "'Tajawal', sans-serif" }}>
+                          {label}
+                        </span>
+                        <span style={{ fontSize: 12, color: "var(--text-muted)", fontFamily: "'Tajawal', sans-serif" }}>
+                          {value} / {total}
+                        </span>
+                      </div>
+                      <div style={{ height: 7, borderRadius: 999, background: "var(--border)", overflow: "hidden" }}>
+                        <div
+                          style={{
+                            height: "100%", width: `${pct}%`,
+                            borderRadius: 999, background: color,
+                            transition: "width 0.6s ease",
+                          }}
+                        />
+                      </div>
+                    </div>
+                  );
+                })}
           </div>
         </div>
       </div>

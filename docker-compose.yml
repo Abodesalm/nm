@@ -1,0 +1,24 @@
+version: "3.8"
+
+services:
+  web:
+    build: .
+    container_name: nextjs-app
+    ports:
+      - "127.0.0.1:3000:3000"
+    restart: unless-stopped
+    depends_on:
+      - nm-mongodb
+
+  nm-mongodb:
+    image: mongo:7
+    container_name: nm-mongodb
+    ports:
+      - "27017:27017"
+    volumes:
+      - nm-mongodb-data:/data/db
+    restart: unless-stopped
+
+volumes:
+  nm-mongodb-data:
+    external: true # Tells Compose to use the volume you already created

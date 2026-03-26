@@ -1,0 +1,172 @@
+Design a detailed implementation plan for a Finance section in the NM System. Here's the complete context:
+
+## Current System Architecture
+
+### Tech Stack
+
+- Next.js (App Router), React, TypeScript
+- MongoDB with Mongoose
+- RTL Arabic UI (Tajawal/Cairo fonts)
+- Inline styles + CSS variables (not Tailwind classes for styling)
+- lucide-react icons
+- NextAuth for auth
+- xlsx-js-style for exports
+
+### Existing Models & Data Sources for Finance
+
+**Employee salaries** (`Employee.salaries[]`):
+
+```
+{ month, year, amount: { USD, SP, exchange }, reward: { USD, SP, exchange }, notes, paidAt }
+```
+
+**Customer subscriptions** (`Customer.subscriptions[]`):
+
+```
+{ month, year, pack info, amount: { USD, SP, exchange }, discount: { enabled, amount }, finalAmount: { USD, SP, exchange }, paidAt, notes }
+```
+
+**Storage item actions with costs** (`StorageItem.actions[]`):
+
+```
+{ type, quantity, cost: { USD, SP, exchange } | null, employee, goal_model, goal_id, notes, date }
+```
+
+**Employee loans** (`Employee.loans[]`):
+
+```
+{ amount: { USD, SP, exchange }, state: "paid"/"unpaid", notes, createdAt }
+```
+
+### Multi-Currency Format
+
+All money uses: `{ USD: number, SP: number, exchange: number }`
+
+### History Model
+
+Logs all actions with types: "salary_added", "salary_deleted", "stock_in", "stock_out", "consume", "borrow", "return", "loan_added", "loan_deleted", "subscription_added", etc.
+Each log has: section, type, performedBy, date, references (employee/item/point/customer/relatedId)
+
+### Existing UI Patterns
+
+- Stat cards: icon + colored bg, large number, subtitle breakdowns
+- Tables: pagination, search, sorting, column visibility toggle, status badges, row actions menu
+- Drawers: slide-in from right, 480px, form validation
+- Detail pages: `/section/[id]/page.tsx` with back button, related data tables
+- Charts: NO chart library currently installed
+- Export: `downloadXLSX(rows, filename)` utility
+
+### Sidebar Navigation
+
+Items with lucide-react icons, permission-based visibility. Finance section needs to be added.
+
+### Permission System
+
+Per-section permissions: "none" | "readonly" | "full". Section enum includes "finance".
+
+---
+
+## Requirements for Finance Section
+
+### Stats (Top of Finance Page)
+
+1. **Total costs paid this month** - with % comparison to previous month
+2. **Total earns this month** - with % comparison to previous month
+3. **Monthly costs & earns wave chart** - navigable between years
+4. **3 sub-stats**: Salaries total, Subscriptions total, StorageItems costs total - each with % comparison to previous month
+
+### What counts as COSTS:
+
+- Employee salaries (amount + reward)
+- Storage item action costs (any action with a cost)
+- Employee loans given
+
+### What counts as EARNS:
+
+- Customer subscription payments (finalAmount)
+
+### Invoice System
+
+**Invoices are auto-created when:**
+
+1. A salary is paid to an employee → invoice created
+2. A subscription is added to a customer → invoice created
+3. A storage action with a cost is added → invoice created
+
+**Invoice properties:**
+
+- Cannot be manually edited or deleted
+- Deleted ONLY when the related action is deleted (cascade)
+- Listed in a table with all standard table features
+- Clicking an invoice opens its own detail page
+- Invoice detail page allows downloading (PDF-like)
+
+### Invoice Data Model (needs to be created):
+
+```
+Invoice {
+  invoiceNumber (unique, auto-increment)
+  type: "salary" | "subscription" | "storage_action"
+
+  // References (one of these based on type)
+  employee (ref to Employee) - for salary type
+  customer (ref to Customer) - for subscription type
+  storageItem (ref to StorageItem) - for storage_action type
+
+  relatedId (ObjectId - the specific salary/subscription/action _id)
+
+  amount: { USD, SP, exchange }
+  category: "cost" | "earn"
+
+  description (auto-generated based on type)
+  notes
+
+  date (when the transaction occurred)
+  createdAt
+}
+```
+
+### Table Features for Invoice List:
+
+- Search by invoice number, description
+- Filter by type (salary/subscription/storage_action)
+- Filter by category (cost/earn)
+- Date range filter
+- Pagination, sorting, column visibility
+- Export to XLSX
+
+### Invoice Detail Page:
+
+- Professional invoice layout
+- Download as printable format
+- Shows all invoice details: number, date, type, parties involved, amount breakdown
+
+### API Routes Needed:
+
+- `GET /api/finance/stats` - Returns all stat data with month comparisons
+- `GET /api/finance/invoices` - List with pagination/filtering
+- `GET /api/finance/invoices/[id]` - Single invoice detail
+- Invoice creation should happen in existing endpoints (salary, subscription, storage action routes)
+- Invoice deletion should cascade from existing delete endpoints
+
+### Chart Library
+
+Need to add a chart library for the monthly wave chart. Recommend recharts (popular with React/Next.js).
+
+### Additional Ideas to Consider:
+
+- Loan tracking in finance (loans given as costs, loans repaid as partial recovery)
+- Monthly/yearly summary export
+- Quick filters for current month, last 3 months, this year
+
+---
+
+Please design a comprehensive implementation plan covering:
+
+1. Database model (Invoice)
+2. API routes
+3. Frontend pages and components
+4. Integration points with existing code (where to add invoice creation/deletion)
+5. Chart integration
+6. File structure
+7. Order of implementation

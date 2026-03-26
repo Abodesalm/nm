@@ -235,7 +235,7 @@ export function Sidebar() {
         {!collapsed && (
           <span
             className="font-title font-bold truncate flex-1 text-zinc-900 dark:text-white"
-            style={{ fontSize: 15, marginTop: 8 }}
+            style={{ fontSize: 15, marginTop: 0 }}
           >
             NM System
           </span>

@@ -1,11 +1,179 @@
 "use client";
 
 import { useState, useEffect, useRef } from "react";
-import { Search, Trash2, ChevronDown, ChevronUp } from "lucide-react";
+import {
+  Search,
+  Trash2,
+  ChevronDown,
+  ChevronUp,
+  X,
+  UserCircle,
+  FileDown,
+} from "lucide-react";
+import { downloadXLSX } from "@/lib/exportXLSX";
 import { ConfirmDialog } from "@/components/shared/ConfirmDialog";
 import { Pagination } from "@/components/shared/Pagination";
 import { PageSpinner } from "@/components/shared/Spinner";
 import { useSearchParams } from "next/navigation";
+
+// Module-level to avoid remount/focus-loss on re-render
+function EmpPicker({
+  selected,
+  onClear,
+  search,
+  onSearchChange,
+  results,
+  onSelect,
+}: {
+  selected: any;
+  onClear: () => void;
+  search: string;
+  onSearchChange: (v: string) => void;
+  results: any[];
+  onSelect: (e: any) => void;
+}) {
+  const [open, setOpen] = useState(false);
+  const ref = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    function handler(e: MouseEvent) {
+      if (ref.current && !ref.current.contains(e.target as Node))
+        setOpen(false);
+    }
+    document.addEventListener("mousedown", handler);
+    return () => document.removeEventListener("mousedown", handler);
+  }, []);
+
+  if (selected) {
+    return (
+      <div
+        style={{
+          display: "inline-flex",
+          alignItems: "center",
+          gap: 6,
+          height: 38,
+          padding: "0 10px 0 8px",
+          borderRadius: 8,
+          border: "1.5px solid #f97316",
+          background: "rgba(249,115,22,0.08)",
+          color: "#f97316",
+          fontSize: 13,
+          fontFamily: "'Tajawal', sans-serif",
+          fontWeight: 600,
+          whiteSpace: "nowrap",
+        }}
+      >
+        <UserCircle size={14} />
+        {selected.fullName}
+        <button
+          onClick={onClear}
+          style={{
+            background: "none",
+            border: "none",
+            cursor: "pointer",
+            color: "#f97316",
+            padding: 0,
+            display: "flex",
+            alignItems: "center",
+          }}
+        >
+          <X size={13} />
+        </button>
+      </div>
+    );
+  }
+
+  return (
+    <div ref={ref} style={{ position: "relative" }}>
+      <input
+        value={search}
+        onChange={(e) => {
+          onSearchChange(e.target.value);
+          setOpen(true);
+        }}
+        onFocus={() => setOpen(true)}
+        placeholder="فلتر بالموظف..."
+        style={{
+          height: 38,
+          padding: "0 10px",
+          borderRadius: 8,
+          border: "1px solid var(--border)",
+          background: "var(--bg)",
+          color: "var(--text)",
+          fontSize: 13,
+          fontFamily: "'Tajawal', sans-serif",
+          outline: "none",
+          width: 160,
+        }}
+      />
+      {open && results.length > 0 && (
+        <div
+          style={{
+            position: "absolute",
+            top: "calc(100% + 4px)",
+            right: 0,
+            width: 220,
+            background: "var(--surface)",
+            border: "1px solid var(--border)",
+            borderRadius: 10,
+            boxShadow: "0 8px 24px rgba(0,0,0,0.12)",
+            zIndex: 300,
+            maxHeight: 200,
+            overflowY: "auto",
+          }}
+        >
+          {results.map((emp) => (
+            <div
+              key={emp._id}
+              onMouseDown={() => {
+                onSelect(emp);
+                setOpen(false);
+              }}
+              style={{
+                padding: "9px 12px",
+                cursor: "pointer",
+                display: "flex",
+                alignItems: "center",
+                gap: 8,
+              }}
+              onMouseEnter={(e) =>
+                (e.currentTarget.style.background = "var(--bg)")
+              }
+              onMouseLeave={(e) =>
+                (e.currentTarget.style.background = "transparent")
+              }
+            >
+              <UserCircle
+                size={14}
+                color="var(--text-muted)"
+                style={{ flexShrink: 0 }}
+              />
+              <span
+                style={{
+                  fontSize: 13,
+                  color: "var(--text)",
+                  fontFamily: "'Tajawal', sans-serif",
+                  flex: 1,
+                }}
+              >
+                {emp.fullName}
+              </span>
+              <span
+                style={{
+                  fontSize: 11,
+                  color: "var(--text-muted)",
+                  fontFamily: "monospace",
+                }}
+              >
+                #{emp.id_num}
+              </span>
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
 
 const SECTIONS = [
   { value: "employees", label: "موظفين" },
@@ -71,13 +239,38 @@ export default function HistoryPage() {
   const [dateTo, setDateTo] = useState("");
   const [confirmDelete, setConfirmDelete] = useState<string | null>(null);
 
+  const [allEmployees, setAllEmployees] = useState<any[]>([]);
+  const [empSearch, setEmpSearch] = useState("");
+  const [selectedEmp, setSelectedEmp] = useState<any>(null);
+
+  const [exporting, setExporting] = useState(false);
   const [showColMenu, setShowColMenu] = useState(false);
   const [hiddenCols, setHiddenCols] = useState<string[]>([]);
   const colMenuRef = useRef<HTMLDivElement>(null);
   const searchParams = useSearchParams();
 
-  // Extract the 'employee' parameter
-  const employeeId = searchParams.get("employee");
+  // Load all employees once (for picker)
+  useEffect(() => {
+    fetch("/api/employees?limit=500")
+      .then((r) => r.json())
+      .then((d) => {
+        const list: any[] = d.data?.employees ?? [];
+        setAllEmployees(list);
+        const urlId = searchParams.get("employee");
+        if (urlId) {
+          const found = list.find((e) => e._id === urlId);
+          if (found) setSelectedEmp(found);
+        }
+      });
+  }, []);
+
+  const filteredEmps = empSearch.trim()
+    ? allEmployees.filter(
+        (e) =>
+          e.fullName?.includes(empSearch) ||
+          e.id_num?.toString().includes(empSearch),
+      )
+    : allEmployees.slice(0, 8);
 
   // Load hidden cols
   useEffect(() => {
@@ -108,17 +301,17 @@ export default function HistoryPage() {
 
   useEffect(() => {
     setPage(1);
-  }, [activeSection, filterType, dateFrom, dateTo]);
+  }, [activeSection, filterType, dateFrom, dateTo, selectedEmp]);
   useEffect(() => {
     fetchLogs();
-  }, [activeSection, filterType, dateFrom, dateTo, page, limit]);
+  }, [activeSection, filterType, dateFrom, dateTo, selectedEmp, page, limit]);
 
   async function fetchLogs() {
     setLoading(true);
     const params = new URLSearchParams({
       page: String(page),
       limit: String(limit),
-      ...(employeeId && { employee: String(employeeId) }),
+      ...(selectedEmp && { employee: selectedEmp._id }),
       ...(activeSection && { section: activeSection }),
       ...(filterType && { type: filterType }),
       ...(dateFrom && { dateFrom }),
@@ -139,6 +332,60 @@ export default function HistoryPage() {
     });
     setConfirmDelete(null);
     fetchLogs();
+  }
+
+  async function handleExportHistory() {
+    setExporting(true);
+    const params = new URLSearchParams({
+      page: "1",
+      limit: "5000",
+      ...(selectedEmp && { employee: selectedEmp._id }),
+      ...(activeSection && { section: activeSection }),
+      ...(filterType && { type: filterType }),
+      ...(dateFrom && { dateFrom }),
+      ...(dateTo && { dateTo }),
+    });
+    const res = await fetch(`/api/history?${params}`);
+    const json = await res.json();
+    const allLogs: any[] = json.data?.logs ?? [];
+    const rows = allLogs.map((log) => {
+      const row: Record<string, any> = {};
+      visibleCols.forEach((col) => {
+        switch (col.key) {
+          case "date":
+            row["التاريخ"] = new Date(log.date).toLocaleDateString("en-GB");
+            break;
+          case "section":
+            row["القسم"] =
+              SECTIONS.find((s) => s.value === log.section)?.label ??
+              log.section;
+            break;
+          case "type":
+            row["النوع"] = TYPE_LABELS[log.type] ?? log.type;
+            break;
+          case "performedBy":
+            row["بواسطة"] = log.performedBy?.name ?? "—";
+            break;
+          case "employee":
+            row["الموظف"] = log.employee
+              ? `${log.employee.fullName} #${log.employee.id_num}`
+              : "—";
+            break;
+          case "item":
+            row["العنصر"] = log.item?.name ?? "—";
+            break;
+          case "quantity":
+            row["الكمية"] = log.quantity ?? "—";
+            break;
+          case "notes":
+            row["ملاحظات"] = log.notes ?? "—";
+            break;
+        }
+      });
+      return row;
+    });
+    downloadXLSX(rows, "سجل-العمليات");
+    setExporting(false);
   }
 
   function toggleCol(key: string) {
@@ -236,7 +483,7 @@ export default function HistoryPage() {
         <select
           style={{
             height: 38,
-            padding: "0 10px",
+            padding: "0 1px",
             borderRadius: 8,
             border: "1px solid var(--border)",
             background: "var(--bg)",
@@ -296,13 +543,27 @@ export default function HistoryPage() {
           />
         </div>
 
+        {/* Employee picker */}
+        <EmpPicker
+          selected={selectedEmp}
+          onClear={() => setSelectedEmp(null)}
+          search={empSearch}
+          onSearchChange={setEmpSearch}
+          results={filteredEmps}
+          onSelect={(e) => {
+            setSelectedEmp(e);
+            setEmpSearch("");
+          }}
+        />
+
         {/* Clear */}
-        {(filterType || dateFrom || dateTo) && (
+        {(filterType || dateFrom || dateTo || selectedEmp) && (
           <button
             onClick={() => {
               setFilterType("");
               setDateFrom("");
               setDateTo("");
+              setSelectedEmp(null);
             }}
             style={{
               height: 38,
@@ -319,6 +580,31 @@ export default function HistoryPage() {
             مسح الفلاتر
           </button>
         )}
+
+        {/* Export */}
+        <button
+          onClick={handleExportHistory}
+          disabled={exporting}
+          style={{
+            display: "flex",
+            alignItems: "center",
+            gap: 6,
+            height: 38,
+            padding: "0 12px",
+            borderRadius: 8,
+            border: "1px solid var(--border)",
+            background: "transparent",
+            color: "var(--text-muted)",
+            fontSize: 12,
+            fontFamily: "'Tajawal', sans-serif",
+            cursor: exporting ? "not-allowed" : "pointer",
+            opacity: exporting ? 0.6 : 1,
+            whiteSpace: "nowrap",
+          }}
+        >
+          <FileDown size={13} />
+          {exporting ? "جاري التصدير..." : "تصدير XLSX"}
+        </button>
 
         {/* Columns toggle */}
         <div

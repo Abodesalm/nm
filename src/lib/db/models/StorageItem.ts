@@ -5,7 +5,6 @@ export interface IStorageItem extends Document {
   category: string;
   unit: string;
   minQuantity: number;
-  cost: { USD: number; SP: number; exchange: number };
   notes?: string;
   isHidden: boolean;
   status: "in-stock" | "low-stock" | "out-of-stock";
@@ -19,6 +18,7 @@ export interface IStorageItem extends Document {
     goal_model?: "customers" | "points" | "employees" | null;
     goal_id?: mongoose.Types.ObjectId | null;
     notes?: string;
+    cost?: { USD: number; SP: number; exchange: number } | null;
     date: Date;
   }[];
 }
@@ -35,7 +35,6 @@ const StorageItemSchema = new Schema<IStorageItem>(
     category: { type: String, required: true },
     unit: { type: String, required: true },
     minQuantity: { type: Number, default: 0 },
-    cost: MoneySchema,
     notes: String,
     isHidden: { type: Boolean, default: false },
     status: {
@@ -61,6 +60,7 @@ const StorageItemSchema = new Schema<IStorageItem>(
         },
         goal_id: { type: Schema.Types.ObjectId, default: null },
         notes: String,
+        cost: { type: Schema.Types.Mixed, default: null },
         date: { type: Date, default: Date.now },
       },
     ],
@@ -68,5 +68,6 @@ const StorageItemSchema = new Schema<IStorageItem>(
   { timestamps: true }
 );
 
-export default mongoose.models.StorageItem ||
-  mongoose.model<IStorageItem>("StorageItem", StorageItemSchema);
+// Delete cached model so schema changes are picked up on hot reload
+delete mongoose.models["StorageItem"];
+export default mongoose.model<IStorageItem>("StorageItem", StorageItemSchema);

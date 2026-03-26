@@ -22,7 +22,7 @@ export interface IPoint extends Document {
 const PointSchema = new Schema<IPoint>(
   {
     point_number: { type: Number, required: true },
-    name: { type: String, required: true },
+    name: { type: String, default: "" },
     mainRegion: { type: String, required: true },
     region: { type: String, required: true },
     location: {
@@ -54,5 +54,6 @@ const PointSchema = new Schema<IPoint>(
   { timestamps: true }
 );
 
-export default mongoose.models.Point ||
-  mongoose.model<IPoint>("Point", PointSchema);
+// Always use the latest schema (handles Next.js HMR in dev and cold start in prod)
+try { mongoose.deleteModel("Point"); } catch {}
+export default mongoose.model<IPoint>("Point", PointSchema);

@@ -19,7 +19,9 @@ import {
   RefreshCw,
   RotateCcw,
   Minus,
+  FileDown,
 } from "lucide-react";
+import { downloadXLSX } from "@/lib/exportXLSX";
 
 const ACTION_LABELS: Record<
   string,
@@ -108,6 +110,20 @@ export default function StorageItemPage() {
     (page - 1) * limit,
     page * limit,
   );
+
+  function handleExportActions() {
+    const rows = filteredActions.map((a: any) => ({
+      النوع: ACTION_LABELS[a.type]?.label ?? a.type,
+      الكمية: a.quantity,
+      الوحدة: item.unit,
+      الموظف: a.employee?.fullName ?? "—",
+      التاريخ: new Date(a.date).toLocaleDateString("en-GB"),
+      الملاحظات: a.notes ?? "",
+      "التكلفة (USD)": a.cost?.USD ?? "",
+      "التكلفة (ل.س)": a.cost?.SP ?? "",
+    }));
+    downloadXLSX(rows, `حركات-${item.name}`);
+  }
 
   const usedPct =
     item.minQuantity > 0
@@ -291,14 +307,6 @@ export default function StorageItemPage() {
                   label: "الحد الأدنى",
                   value: `${item.minQuantity} ${item.unit}`,
                 },
-                ...(item.cost?.USD
-                  ? [
-                      {
-                        label: "التكلفة",
-                        value: `$${item.cost.USD.toFixed(2)}`,
-                      },
-                    ]
-                  : []),
               ].map(({ label, value }) => (
                 <div key={label}>
                   <span style={{ fontSize: 11, color: "var(--text-muted)" }}>
@@ -468,32 +476,57 @@ export default function StorageItemPage() {
           >
             سجل الحركات
           </h3>
-          <select
-            style={{
-              height: 32,
-              padding: "0 10px",
-              borderRadius: 7,
-              border: "1px solid var(--border)",
-              background: "var(--bg)",
-              color: "var(--text)",
-              fontSize: 12,
-              fontFamily: "'Tajawal', sans-serif",
-              outline: "none",
-              cursor: "pointer",
-            }}
-            value={filterType}
-            onChange={(e) => {
-              setFilterType(e.target.value);
-              setPage(1);
-            }}
-          >
-            <option value="">كل الأنواع</option>
-            {Object.entries(ACTION_LABELS).map(([k, v]) => (
-              <option key={k} value={k}>
-                {v.label}
-              </option>
-            ))}
-          </select>
+          <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
+            <select
+              style={{
+                height: 32,
+                padding: "0 1px",
+                borderRadius: 7,
+                border: "1px solid var(--border)",
+                background: "var(--bg)",
+                color: "var(--text)",
+                fontSize: 12,
+                fontFamily: "'Tajawal', sans-serif",
+                outline: "none",
+                cursor: "pointer",
+              }}
+              value={filterType}
+              onChange={(e) => {
+                setFilterType(e.target.value);
+                setPage(1);
+              }}
+            >
+              <option value="">كل الأنواع</option>
+              {Object.entries(ACTION_LABELS).map(([k, v]) => (
+                <option key={k} value={k}>
+                  {v.label}
+                </option>
+              ))}
+            </select>
+            <button
+              onClick={handleExportActions}
+              disabled={filteredActions.length === 0}
+              style={{
+                display: "flex",
+                alignItems: "center",
+                gap: 5,
+                height: 32,
+                padding: "0 12px",
+                borderRadius: 7,
+                border: "1px solid var(--border)",
+                background: "transparent",
+                color: "var(--text-muted)",
+                fontSize: 12,
+                fontFamily: "'Tajawal', sans-serif",
+                cursor:
+                  filteredActions.length === 0 ? "not-allowed" : "pointer",
+                opacity: filteredActions.length === 0 ? 0.5 : 1,
+                whiteSpace: "nowrap",
+              }}
+            >
+              <FileDown size={13} /> تصدير XLSX
+            </button>
+          </div>
         </div>
 
         <div
@@ -585,7 +618,7 @@ export default function StorageItemPage() {
                         </span>
                       )}
                     </div>
-                    <div style={{ display: "flex", gap: 10, marginTop: 2 }}>
+                    <div style={{ display: "flex", gap: 10, marginTop: 8 }}>
                       <span
                         style={{ fontSize: 12, color: "var(--text-muted)" }}
                       >
@@ -605,6 +638,17 @@ export default function StorageItemPage() {
                           {action.goal_model}
                         </span>
                       )}
+                      {action.cost?.USD ? (
+                        <span
+                          style={{
+                            fontSize: 12,
+                            color: "#ef4444",
+                            fontWeight: 600,
+                          }}
+                        >
+                          ${action.cost.USD.toFixed(2)}
+                        </span>
+                      ) : null}
                     </div>
                   </div>
                   <button
@@ -665,13 +709,13 @@ export default function StorageItemPage() {
         onClose={() => setEditDrawer(false)}
         onSaved={fetchItem}
         item={item}
-        defaultExchange={defaultExchange}
       />
       <ActionDrawer
         open={actionDrawer}
         onClose={() => setActionDrawer(false)}
         onSaved={fetchItem}
         item={item}
+        defaultExchange={defaultExchange}
       />
 
       {confirmDelete && (

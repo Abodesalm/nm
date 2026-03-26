@@ -28,7 +28,6 @@ export async function GET(req: NextRequest) {
       name: "name",
       currentQuantity: "currentQuantity",
       status: "status",
-      cost: "cost.USD",
     };
     const sortField = sortMap[sortBy] ?? "name";
     const sort: Record<string, 1 | -1> = {

@@ -5,6 +5,7 @@ import { permissionGuard, ok, err } from "@/lib/api-factory";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import History from "@/lib/db/models/History";
+import Invoice from "@/lib/db/models/Invoice";
 
 export async function POST(
   req: NextRequest,
@@ -48,6 +49,20 @@ export async function POST(
       date: new Date(),
     });
 
+    // Create invoice
+    const invoiceCount = await Invoice.countDocuments();
+    await Invoice.create({
+      invoiceNumber: invoiceCount + 1,
+      type: "salary",
+      category: "cost",
+      employee: id,
+      relatedId: newSalary._id,
+      amount: body.amount,
+      description: `راتب ${employee.fullName} — ${body.month}/${body.year}`,
+      notes: body.notes ?? null,
+      date: new Date(),
+    });
+
     return ok(updated!.salaries);
   } catch (e: any) {
     return err(e.message, 500);
@@ -73,8 +88,9 @@ export async function DELETE(
     );
     if (!updated) return err("الموظف غير موجود", 404);
 
-    // Delete history log
+    // Delete history log and invoice
     await History.deleteOne({ relatedId: salaryId, type: "salary_added" });
+    await Invoice.deleteOne({ relatedId: salaryId });
 
     return ok(updated.salaries);
   } catch (e: any) {

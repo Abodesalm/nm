@@ -1,14 +1,16 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { Drawer } from "@/components/shared/Drawer";
 import { Spinner } from "@/components/shared/Spinner";
+import { MoneyInput } from "@/components/shared/MoneyInput";
 
 interface Props {
   open: boolean;
   onClose: () => void;
   onSaved: () => void;
   item: any;
+  defaultExchange?: number;
 }
 
 const ACTION_TYPES = [
@@ -39,21 +41,41 @@ const inputStyle: React.CSSProperties = {
   transition: "border-color 0.15s",
 };
 
-export function ActionDrawer({ open, onClose, onSaved, item }: Props) {
+function Field({ label, children }: { label: string; children: React.ReactNode }) {
+  return (
+    <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+      <label style={{ fontSize: 13, fontWeight: 600, color: "var(--text)", fontFamily: "'Cairo', sans-serif" }}>
+        {label}
+      </label>
+      {children}
+    </div>
+  );
+}
+
+export function ActionDrawer({ open, onClose, onSaved, item, defaultExchange = 0 }: Props) {
   const [actionType, setActionType] = useState("stock_in");
   const [quantity, setQuantity] = useState("");
+  const [allEmployees, setAllEmployees] = useState<any[]>([]);
   const [employeeSearch, setEmployeeSearch] = useState("");
-  const [employeeResults, setEmployeeResults] = useState<any[]>([]);
   const [selectedEmployee, setSelectedEmployee] = useState<any>(null);
   const [goalModel, setGoalModel] = useState("");
-  const [goalSearch, setGoalSearch] = useState("");
-  const [goalResults, setGoalResults] = useState<any[]>([]);
   const [selectedGoal, setSelectedGoal] = useState<any>(null);
   const [notes, setNotes] = useState("");
   const [date, setDate] = useState(new Date().toISOString().split("T")[0]);
+  const [showCost, setShowCost] = useState(false);
+  const [cost, setCost] = useState({ USD: 0, SP: 0, exchange: 0 });
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
 
+  // For points: load all and filter client-side
+  const [allPoints, setAllPoints] = useState<any[]>([]);
+  const [pointSearch, setPointSearch] = useState("");
+
+  // For employees/customers: live search
+  const [goalSearch, setGoalSearch] = useState("");
+  const [goalResults, setGoalResults] = useState<any[]>([]);
+
+  // Reset on close
   useEffect(() => {
     if (!open) {
       setActionType("stock_in");
@@ -61,54 +83,80 @@ export function ActionDrawer({ open, onClose, onSaved, item }: Props) {
       setEmployeeSearch("");
       setSelectedEmployee(null);
       setGoalModel("");
-      setGoalSearch("");
       setSelectedGoal(null);
       setNotes("");
       setDate(new Date().toISOString().split("T")[0]);
+      setShowCost(false);
+      setCost({ USD: 0, SP: 0, exchange: 0 });
       setError("");
+      setAllPoints([]);
+      setPointSearch("");
+      setGoalSearch("");
+      setGoalResults([]);
     }
   }, [open]);
 
+  // Load all points when goal = "points"
   useEffect(() => {
-    if (employeeSearch.trim().length < 2) {
-      setEmployeeResults([]);
-      return;
+    if (goalModel === "points") {
+      fetch("/api/points?limit=500")
+        .then((r) => r.json())
+        .then((d) => setAllPoints(Array.isArray(d.data) ? d.data : []));
+    } else {
+      setAllPoints([]);
+      setPointSearch("");
     }
-    const timer = setTimeout(async () => {
-      const res = await fetch(
-        `/api/employees?search=${employeeSearch}&limit=5`,
-      );
-      const json = await res.json();
-      setEmployeeResults(json.data?.employees ?? []);
-    }, 300);
-    return () => clearTimeout(timer);
-  }, [employeeSearch]);
+    setSelectedGoal(null);
+    setGoalSearch("");
+    setGoalResults([]);
+  }, [goalModel]);
 
+  // Live search for employees/customers
   useEffect(() => {
-    if (!goalModel || goalSearch.trim().length < 2) {
+    if (goalModel === "points" || !goalModel || goalSearch.trim().length < 2) {
       setGoalResults([]);
       return;
     }
     const timer = setTimeout(async () => {
-      const res = await fetch(`/api/${goalModel}?search=${goalSearch}&limit=5`);
+      const res = await fetch(`/api/${goalModel}?search=${goalSearch}&limit=8`);
       const json = await res.json();
-      const key =
-        goalModel === "employees"
-          ? "employees"
-          : goalModel === "customers"
-            ? "customers"
-            : "points";
-      setGoalResults(json.data?.[key] ?? []);
+      const key = goalModel === "employees" ? "employees" : "customers";
+      setGoalResults(json.data?.[key] ?? json.data ?? []);
     }, 300);
     return () => clearTimeout(timer);
   }, [goalModel, goalSearch]);
+
+  // Load all employees once when drawer opens
+  useEffect(() => {
+    if (!open) return;
+    fetch("/api/employees?limit=500")
+      .then((r) => r.json())
+      .then((d) => setAllEmployees(d.data?.employees ?? []));
+  }, [open]);
+
+  const filteredEmployees = employeeSearch.trim()
+    ? allEmployees.filter(
+        (e) =>
+          e.fullName?.includes(employeeSearch) ||
+          e.id_num?.toString().includes(employeeSearch),
+      )
+    : allEmployees.slice(0, 8);
+
+  const filteredPoints = allPoints.filter((p) => {
+    const q = pointSearch.trim().toLowerCase();
+    if (!q) return true;
+    return (
+      String(p.point_number).includes(q) ||
+      (p.name ?? "").toLowerCase().includes(q) ||
+      (p.region ?? "").toLowerCase().includes(q)
+    );
+  });
 
   async function handleSave() {
     if (!quantity || Number(quantity) <= 0) {
       setError("الكمية مطلوبة وأكبر من صفر");
       return;
     }
-
     setSaving(true);
     setError("");
 
@@ -119,6 +167,7 @@ export function ActionDrawer({ open, onClose, onSaved, item }: Props) {
       employee: selectedEmployee?._id ?? null,
       goal_model: goalModel || null,
       goal_id: selectedGoal?._id ?? null,
+      cost: showCost ? cost : null,
     };
 
     const res = await fetch(`/api/storage/${item._id}/actions`, {
@@ -137,24 +186,6 @@ export function ActionDrawer({ open, onClose, onSaved, item }: Props) {
     onClose();
   }
 
-  function field(label: string, content: React.ReactNode) {
-    return (
-      <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
-        <label
-          style={{
-            fontSize: 13,
-            fontWeight: 600,
-            color: "var(--text)",
-            fontFamily: "'Cairo', sans-serif",
-          }}
-        >
-          {label}
-        </label>
-        {content}
-      </div>
-    );
-  }
-
   return (
     <Drawer
       open={open}
@@ -164,8 +195,7 @@ export function ActionDrawer({ open, onClose, onSaved, item }: Props) {
     >
       <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
         {/* Action type */}
-        {field(
-          "نوع الحركة",
+        <Field label="نوع الحركة">
           <div
             style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8 }}
           >
@@ -190,15 +220,14 @@ export function ActionDrawer({ open, onClose, onSaved, item }: Props) {
                 {t.label}
               </button>
             ))}
-          </div>,
-        )}
+          </div>
+        </Field>
 
         {/* Quantity + Date */}
         <div
           style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}
         >
-          {field(
-            "الكمية",
+          <Field label="الكمية">
             <input
               style={inputStyle}
               type="number"
@@ -207,10 +236,9 @@ export function ActionDrawer({ open, onClose, onSaved, item }: Props) {
               placeholder="0"
               onFocus={(e) => (e.target.style.borderColor = "#f97316")}
               onBlur={(e) => (e.target.style.borderColor = "var(--border)")}
-            />,
-          )}
-          {field(
-            "التاريخ",
+            />
+          </Field>
+          <Field label="التاريخ">
             <input
               style={inputStyle}
               type="date"
@@ -218,128 +246,45 @@ export function ActionDrawer({ open, onClose, onSaved, item }: Props) {
               onChange={(e) => setDate(e.target.value)}
               onFocus={(e) => (e.target.style.borderColor = "#f97316")}
               onBlur={(e) => (e.target.style.borderColor = "var(--border)")}
-            />,
-          )}
+            />
+          </Field>
         </div>
 
         {/* Employee search */}
-        {field(
-          "الموظف المسؤول",
-          <div style={{ position: "relative" }}>
-            {selectedEmployee ? (
-              <div
-                style={{
-                  display: "flex",
-                  alignItems: "center",
-                  gap: 8,
-                  padding: "0 12px",
-                  height: 40,
-                  borderRadius: 8,
-                  border: "1px solid var(--border)",
-                  background: "var(--bg)",
-                }}
-              >
-                <span
-                  style={{
-                    flex: 1,
-                    fontSize: 13.5,
-                    color: "var(--text)",
-                    fontFamily: "'Tajawal', sans-serif",
-                  }}
-                >
-                  {selectedEmployee.fullName} #{selectedEmployee.id_num}
-                </span>
-                <button
-                  onClick={() => {
-                    setSelectedEmployee(null);
-                    setEmployeeSearch("");
-                  }}
-                  style={{
-                    background: "none",
-                    border: "none",
-                    cursor: "pointer",
-                    color: "var(--text-muted)",
-                    fontSize: 16,
-                  }}
-                >
-                  ×
-                </button>
-              </div>
-            ) : (
+        <Field label="الموظف المسؤول">
+          <SearchPicker
+            selected={selectedEmployee}
+            displayKey={(e) => `${e.fullName} #${e.id_num}`}
+            onClear={() => {
+              setSelectedEmployee(null);
+              setEmployeeSearch("");
+            }}
+            search={employeeSearch}
+            onSearchChange={setEmployeeSearch}
+            results={filteredEmployees}
+            onSelect={(e) => {
+              setSelectedEmployee(e);
+              setEmployeeSearch("");
+            }}
+            resultLabel={(e) => (
               <>
-                <input
-                  style={inputStyle}
-                  value={employeeSearch}
-                  onChange={(e) => setEmployeeSearch(e.target.value)}
-                  placeholder="ابحث عن موظف..."
-                  onFocus={(e) => (e.target.style.borderColor = "#f97316")}
-                  onBlur={(e) => (e.target.style.borderColor = "var(--border)")}
-                />
-                {employeeResults.length > 0 && (
-                  <div
-                    style={{
-                      position: "absolute",
-                      top: "100%",
-                      right: 0,
-                      left: 0,
-                      marginTop: 4,
-                      background: "var(--surface)",
-                      border: "1px solid var(--border)",
-                      borderRadius: 8,
-                      boxShadow: "0 8px 24px rgba(0,0,0,0.12)",
-                      zIndex: 100,
-                      overflow: "hidden",
-                    }}
-                  >
-                    {employeeResults.map((emp) => (
-                      <div
-                        key={emp._id}
-                        onClick={() => {
-                          setSelectedEmployee(emp);
-                          setEmployeeSearch("");
-                          setEmployeeResults([]);
-                        }}
-                        style={{
-                          padding: "9px 12px",
-                          cursor: "pointer",
-                          fontSize: 13.5,
-                          color: "var(--text)",
-                          fontFamily: "'Tajawal', sans-serif",
-                        }}
-                        onMouseEnter={(e) =>
-                          (e.currentTarget.style.background = "var(--bg)")
-                        }
-                        onMouseLeave={(e) =>
-                          (e.currentTarget.style.background = "transparent")
-                        }
-                      >
-                        {emp.fullName}{" "}
-                        <span
-                          style={{ color: "var(--text-muted)", fontSize: 12 }}
-                        >
-                          #{emp.id_num}
-                        </span>
-                      </div>
-                    ))}
-                  </div>
-                )}
+                {e.fullName}{" "}
+                <span style={{ color: "var(--text-muted)", fontSize: 12 }}>
+                  #{e.id_num}
+                </span>
               </>
             )}
-          </div>,
-        )}
+            placeholder="ابحث عن موظف..."
+          />
+        </Field>
 
         {/* Goal */}
-        {field(
-          "الوجهة",
+        <Field label="الوجهة">
           <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
             <select
               style={{ ...inputStyle, cursor: "pointer" }}
               value={goalModel}
-              onChange={(e) => {
-                setGoalModel(e.target.value);
-                setSelectedGoal(null);
-                setGoalSearch("");
-              }}
+              onChange={(e) => setGoalModel(e.target.value)}
             >
               <option value="">بدون وجهة</option>
               {GOAL_MODELS.map((m) => (
@@ -349,114 +294,145 @@ export function ActionDrawer({ open, onClose, onSaved, item }: Props) {
               ))}
             </select>
 
-            {goalModel && (
-              <div style={{ position: "relative" }}>
-                {selectedGoal ? (
+            {/* Points: load-all + client-side filter */}
+            {goalModel === "points" &&
+              (selectedGoal ? (
+                <SelectedTag
+                  label={`#${selectedGoal.point_number}${selectedGoal.name ? ` — ${selectedGoal.name}` : ""}`}
+                  onClear={() => {
+                    setSelectedGoal(null);
+                    setPointSearch("");
+                  }}
+                />
+              ) : (
+                <div
+                  style={{ display: "flex", flexDirection: "column", gap: 6 }}
+                >
+                  <input
+                    style={inputStyle}
+                    value={pointSearch}
+                    onChange={(e) => setPointSearch(e.target.value)}
+                    placeholder="ابحث بالرقم أو الاسم أو المنطقة..."
+                    onFocus={(e) => (e.target.style.borderColor = "#f97316")}
+                    onBlur={(e) =>
+                      (e.target.style.borderColor = "var(--border)")
+                    }
+                  />
                   <div
                     style={{
-                      display: "flex",
-                      alignItems: "center",
-                      gap: 8,
-                      padding: "0 12px",
-                      height: 40,
-                      borderRadius: 8,
+                      maxHeight: 180,
+                      overflowY: "auto",
                       border: "1px solid var(--border)",
-                      background: "var(--bg)",
+                      borderRadius: 8,
+                      background: "var(--surface)",
                     }}
                   >
-                    <span
-                      style={{
-                        flex: 1,
-                        fontSize: 13.5,
-                        color: "var(--text)",
-                        fontFamily: "'Tajawal', sans-serif",
-                      }}
-                    >
-                      {selectedGoal.fullName ??
-                        selectedGoal.name ??
-                        selectedGoal.point_number}
-                    </span>
-                    <button
-                      onClick={() => {
-                        setSelectedGoal(null);
-                        setGoalSearch("");
-                      }}
-                      style={{
-                        background: "none",
-                        border: "none",
-                        cursor: "pointer",
-                        color: "var(--text-muted)",
-                        fontSize: 16,
-                      }}
-                    >
-                      ×
-                    </button>
-                  </div>
-                ) : (
-                  <>
-                    <input
-                      style={inputStyle}
-                      value={goalSearch}
-                      onChange={(e) => setGoalSearch(e.target.value)}
-                      placeholder={`ابحث عن ${GOAL_MODELS.find((m) => m.value === goalModel)?.label}...`}
-                      onFocus={(e) => (e.target.style.borderColor = "#f97316")}
-                      onBlur={(e) =>
-                        (e.target.style.borderColor = "var(--border)")
-                      }
-                    />
-                    {goalResults.length > 0 && (
+                    {allPoints.length === 0 ? (
                       <div
                         style={{
-                          position: "absolute",
-                          top: "100%",
-                          right: 0,
-                          left: 0,
-                          marginTop: 4,
-                          background: "var(--surface)",
-                          border: "1px solid var(--border)",
-                          borderRadius: 8,
-                          boxShadow: "0 8px 24px rgba(0,0,0,0.12)",
-                          zIndex: 100,
-                          overflow: "hidden",
+                          padding: "10px 12px",
+                          fontSize: 13,
+                          color: "var(--text-muted)",
+                          fontFamily: "'Tajawal', sans-serif",
                         }}
                       >
-                        {goalResults.map((g: any) => (
-                          <div
-                            key={g._id}
-                            onClick={() => {
-                              setSelectedGoal(g);
-                              setGoalSearch("");
-                              setGoalResults([]);
-                            }}
-                            style={{
-                              padding: "9px 12px",
-                              cursor: "pointer",
-                              fontSize: 13.5,
-                              color: "var(--text)",
-                              fontFamily: "'Tajawal', sans-serif",
-                            }}
-                            onMouseEnter={(e) =>
-                              (e.currentTarget.style.background = "var(--bg)")
-                            }
-                            onMouseLeave={(e) =>
-                              (e.currentTarget.style.background = "transparent")
-                            }
-                          >
-                            {g.fullName ?? g.name ?? `نقطة #${g.point_number}`}
-                          </div>
-                        ))}
+                        جاري التحميل...
                       </div>
+                    ) : filteredPoints.length === 0 ? (
+                      <div
+                        style={{
+                          padding: "10px 12px",
+                          fontSize: 13,
+                          color: "var(--text-muted)",
+                          fontFamily: "'Tajawal', sans-serif",
+                        }}
+                      >
+                        لا توجد نتائج
+                      </div>
+                    ) : (
+                      filteredPoints.map((p) => (
+                        <div
+                          key={p._id}
+                          onClick={() => {
+                            setSelectedGoal(p);
+                            setPointSearch("");
+                          }}
+                          style={{
+                            padding: "9px 12px",
+                            cursor: "pointer",
+                            fontSize: 13.5,
+                            color: "var(--text)",
+                            fontFamily: "'Tajawal', sans-serif",
+                            display: "flex",
+                            gap: 8,
+                            alignItems: "center",
+                          }}
+                          onMouseEnter={(e) =>
+                            (e.currentTarget.style.background = "var(--bg)")
+                          }
+                          onMouseLeave={(e) =>
+                            (e.currentTarget.style.background = "transparent")
+                          }
+                        >
+                          <span
+                            style={{
+                              fontFamily: "monospace",
+                              fontSize: 12,
+                              color: "#f97316",
+                              fontWeight: 700,
+                            }}
+                          >
+                            #{p.point_number}
+                          </span>
+                          <span style={{ flex: 1 }}>
+                            {p.name || (
+                              <span style={{ color: "var(--text-muted)" }}>
+                                بدون اسم
+                              </span>
+                            )}
+                          </span>
+                          <span
+                            style={{ fontSize: 11, color: "var(--text-muted)" }}
+                          >
+                            {p.region}
+                          </span>
+                        </div>
+                      ))
                     )}
-                  </>
-                )}
-              </div>
+                  </div>
+                </div>
+              ))}
+
+            {/* Employees / Customers: live search */}
+            {(goalModel === "employees" || goalModel === "customers") && (
+              <SearchPicker
+                selected={selectedGoal}
+                displayKey={(g) =>
+                  g.fullName ?? g.name ?? String(g.customer_number ?? "")
+                }
+                onClear={() => {
+                  setSelectedGoal(null);
+                  setGoalSearch("");
+                }}
+                search={goalSearch}
+                onSearchChange={setGoalSearch}
+                results={goalResults}
+                onSelect={(g) => {
+                  setSelectedGoal(g);
+                  setGoalSearch("");
+                  setGoalResults([]);
+                }}
+                resultLabel={(g) =>
+                  g.fullName ?? g.name ?? `#${g.customer_number}`
+                }
+                placeholder={`ابحث عن ${GOAL_MODELS.find((m) => m.value === goalModel)?.label}...`}
+              />
             )}
-          </div>,
-        )}
+          </div>
+        </Field>
 
         {/* Notes */}
-        {field(
-          "ملاحظات",
+        <Field label="ملاحظات">
           <textarea
             style={{
               ...inputStyle,
@@ -469,7 +445,50 @@ export function ActionDrawer({ open, onClose, onSaved, item }: Props) {
             placeholder="ملاحظات..."
             onFocus={(e) => (e.target.style.borderColor = "#f97316")}
             onBlur={(e) => (e.target.style.borderColor = "var(--border)")}
-          />,
+          />
+        </Field>
+
+        {/* Cost (optional) */}
+        {showCost ? (
+          <Field label="التكلفة (اختياري)">
+            <MoneyInput
+              value={cost}
+              onChange={setCost}
+              defaultExchange={defaultExchange}
+            />
+            <button
+              onClick={() => { setShowCost(false); setCost({ USD: 0, SP: 0, exchange: 0 }); }}
+              style={{
+                alignSelf: "flex-start",
+                marginTop: 4,
+                background: "none",
+                border: "none",
+                cursor: "pointer",
+                fontSize: 12,
+                color: "var(--text-muted)",
+                fontFamily: "'Tajawal', sans-serif",
+                padding: 0,
+              }}
+            >
+              × إزالة التكلفة
+            </button>
+          </Field>
+        ) : (
+          <button
+            onClick={() => setShowCost(true)}
+            style={{
+              alignSelf: "flex-start",
+              background: "none",
+              border: "none",
+              cursor: "pointer",
+              fontSize: 13,
+              color: "#f97316",
+              fontFamily: "'Tajawal', sans-serif",
+              padding: 0,
+            }}
+          >
+            + إضافة تكلفة
+          </button>
         )}
 
         {error && <p style={{ fontSize: 13, color: "#ef4444" }}>{error}</p>}
@@ -517,6 +536,7 @@ export function ActionDrawer({ open, onClose, onSaved, item }: Props) {
               display: "flex",
               alignItems: "center",
               gap: 8,
+              boxShadow: "0 4px 12px rgba(249,115,22,0.3)",
             }}
           >
             {saving && <Spinner size={16} />}
@@ -525,5 +545,158 @@ export function ActionDrawer({ open, onClose, onSaved, item }: Props) {
         </div>
       </div>
     </Drawer>
+  );
+}
+
+/** Reusable search-picker for employee/customer live search */
+function SearchPicker({
+  selected,
+  displayKey,
+  onClear,
+  search,
+  onSearchChange,
+  results,
+  onSelect,
+  resultLabel,
+  placeholder,
+}: {
+  selected: any;
+  displayKey: (item: any) => string;
+  onClear: () => void;
+  search: string;
+  onSearchChange: (v: string) => void;
+  results: any[];
+  onSelect: (item: any) => void;
+  resultLabel: (item: any) => React.ReactNode;
+  placeholder: string;
+}) {
+  const [open, setOpen] = useState(false);
+  const ref = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    function handler(e: MouseEvent) {
+      if (ref.current && !ref.current.contains(e.target as Node))
+        setOpen(false);
+    }
+    document.addEventListener("mousedown", handler);
+    return () => document.removeEventListener("mousedown", handler);
+  }, []);
+
+  const inputStyle: React.CSSProperties = {
+    height: 40,
+    padding: "0 12px",
+    borderRadius: 8,
+    border: "1px solid var(--border)",
+    background: "var(--bg)",
+    color: "var(--text)",
+    fontSize: 13.5,
+    fontFamily: "'Tajawal', sans-serif",
+    outline: "none",
+    width: "100%",
+    transition: "border-color 0.15s",
+  };
+
+  if (selected)
+    return <SelectedTag label={displayKey(selected)} onClear={onClear} />;
+
+  return (
+    <div ref={ref} style={{ position: "relative" }}>
+      <input
+        style={inputStyle}
+        value={search}
+        onChange={(e) => { onSearchChange(e.target.value); setOpen(true); }}
+        onFocus={(e) => { e.target.style.borderColor = "#f97316"; setOpen(true); }}
+        onBlur={(e) => (e.target.style.borderColor = "var(--border)")}
+        placeholder={placeholder}
+      />
+      {open && results.length > 0 && (
+        <div
+          style={{
+            position: "absolute",
+            top: "100%",
+            right: 0,
+            left: 0,
+            marginTop: 4,
+            background: "var(--surface)",
+            border: "1px solid var(--border)",
+            borderRadius: 8,
+            boxShadow: "0 8px 24px rgba(0,0,0,0.12)",
+            zIndex: 100,
+            overflow: "hidden",
+            maxHeight: 200,
+            overflowY: "auto",
+          }}
+        >
+          {results.map((item) => (
+            <div
+              key={item._id}
+              onMouseDown={() => { onSelect(item); setOpen(false); }}
+              style={{
+                padding: "9px 12px",
+                cursor: "pointer",
+                fontSize: 13.5,
+                color: "var(--text)",
+                fontFamily: "'Tajawal', sans-serif",
+              }}
+              onMouseEnter={(e) =>
+                (e.currentTarget.style.background = "var(--bg)")
+              }
+              onMouseLeave={(e) =>
+                (e.currentTarget.style.background = "transparent")
+              }
+            >
+              {resultLabel(item)}
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
+function SelectedTag({
+  label,
+  onClear,
+}: {
+  label: string;
+  onClear: () => void;
+}) {
+  return (
+    <div
+      style={{
+        display: "flex",
+        alignItems: "center",
+        gap: 8,
+        padding: "0 12px",
+        height: 40,
+        borderRadius: 8,
+        border: "1px solid #f97316",
+        background: "rgba(249,115,22,0.06)",
+      }}
+    >
+      <span
+        style={{
+          flex: 1,
+          fontSize: 13.5,
+          color: "var(--text)",
+          fontFamily: "'Tajawal', sans-serif",
+        }}
+      >
+        {label}
+      </span>
+      <button
+        onClick={onClear}
+        style={{
+          background: "none",
+          border: "none",
+          cursor: "pointer",
+          color: "var(--text-muted)",
+          fontSize: 18,
+          lineHeight: 1,
+        }}
+      >
+        ×
+      </button>
+    </div>
   );
 }

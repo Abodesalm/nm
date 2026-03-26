@@ -25,7 +25,6 @@ const COLUMNS = [
   { key: "currentQuantity", label: "الكمية الحالية", sortable: true },
   { key: "borrowedQuantity", label: "المستعار", sortable: false },
   { key: "status", label: "الحالة", sortable: true },
-  { key: "cost", label: "التكلفة", sortable: true },
 ];
 
 const STORAGE_KEY = "storage_hidden_cols";
@@ -395,24 +394,6 @@ export function StorageTable({
                             {col.key === "status" && (
                               <StatusBadge status={item.status} />
                             )}
-                            {col.key === "cost" &&
-                              (item.cost?.USD ? (
-                                <div>
-                                  <p style={{ fontWeight: 600 }}>
-                                    ${item.cost.USD.toFixed(2)}
-                                  </p>
-                                  <p
-                                    style={{
-                                      fontSize: 11,
-                                      color: "var(--text-muted)",
-                                    }}
-                                  >
-                                    {item.cost.SP?.toLocaleString("en")} ل.س
-                                  </p>
-                                </div>
-                              ) : (
-                                "—"
-                              ))}
                           </td>
                         ))}
 

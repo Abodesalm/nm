@@ -1,8 +1,7 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { Drawer } from "@/components/shared/Drawer";
-import { MoneyInput } from "@/components/shared/MoneyInput";
 import { Spinner } from "@/components/shared/Spinner";
 
 interface Props {
@@ -10,7 +9,6 @@ interface Props {
   onClose: () => void;
   onSaved: () => void;
   item?: any;
-  defaultExchange: number;
 }
 
 const inputStyle: React.CSSProperties = {
@@ -27,26 +25,109 @@ const inputStyle: React.CSSProperties = {
   transition: "border-color 0.15s",
 };
 
+function CategoryPicker({
+  value,
+  onChange,
+  suggestions,
+}: {
+  value: string;
+  onChange: (v: string) => void;
+  suggestions: string[];
+}) {
+  const [open, setOpen] = useState(false);
+  const ref = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    function handler(e: MouseEvent) {
+      if (ref.current && !ref.current.contains(e.target as Node))
+        setOpen(false);
+    }
+    document.addEventListener("mousedown", handler);
+    return () => document.removeEventListener("mousedown", handler);
+  }, []);
+
+  const filtered = suggestions.filter(
+    (s) => s.toLowerCase().includes(value.toLowerCase()) && s !== value,
+  );
+
+  return (
+    <div ref={ref} style={{ position: "relative" }}>
+      <input
+        style={inputStyle}
+        value={value}
+        onChange={(e) => { onChange(e.target.value); setOpen(true); }}
+        onFocus={(e) => { e.target.style.borderColor = "#f97316"; setOpen(true); }}
+        onBlur={(e) => (e.target.style.borderColor = "var(--border)")}
+        placeholder="مثال: كابلات"
+      />
+      {open && filtered.length > 0 && (
+        <div
+          style={{
+            position: "absolute",
+            top: "calc(100% + 4px)",
+            right: 0,
+            left: 0,
+            background: "var(--surface)",
+            border: "1px solid var(--border)",
+            borderRadius: 8,
+            boxShadow: "0 8px 24px rgba(0,0,0,0.12)",
+            zIndex: 200,
+            maxHeight: 180,
+            overflowY: "auto",
+          }}
+        >
+          {filtered.map((cat) => (
+            <div
+              key={cat}
+              onMouseDown={() => { onChange(cat); setOpen(false); }}
+              style={{
+                padding: "9px 12px",
+                cursor: "pointer",
+                fontSize: 13,
+                color: "var(--text)",
+                fontFamily: "'Tajawal', sans-serif",
+              }}
+              onMouseEnter={(e) =>
+                (e.currentTarget.style.background = "var(--bg)")
+              }
+              onMouseLeave={(e) =>
+                (e.currentTarget.style.background = "transparent")
+              }
+            >
+              {cat}
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
 const emptyForm = {
   name: "",
   category: "",
   unit: "",
   minQuantity: "",
   notes: "",
-  cost: { USD: 0, SP: 0, exchange: 0 },
 };
 
-export function StorageDrawer({
-  open,
-  onClose,
-  onSaved,
-  item,
-  defaultExchange,
-}: Props) {
+export function StorageDrawer({ open, onClose, onSaved, item }: Props) {
   const [form, setForm] = useState(emptyForm);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
+  const [allCategories, setAllCategories] = useState<string[]>([]);
   const isEdit = !!item;
+
+  // Load existing categories once when drawer opens
+  useEffect(() => {
+    if (!open) return;
+    fetch("/api/storage?limit=1")
+      .then((r) => r.json())
+      .then((d) => {
+        const cats: string[] = d.data?.categories ?? [];
+        setAllCategories(cats);
+      });
+  }, [open]);
 
   useEffect(() => {
     if (item) {
@@ -56,7 +137,6 @@ export function StorageDrawer({
         unit: item.unit,
         minQuantity: String(item.minQuantity),
         notes: item.notes ?? "",
-        cost: item.cost ?? { USD: 0, SP: 0, exchange: 0 },
       });
     } else {
       setForm(emptyForm);
@@ -148,13 +228,10 @@ export function StorageDrawer({
         >
           {field(
             "الفئة",
-            <input
-              style={inputStyle}
+            <CategoryPicker
               value={form.category}
-              onChange={(e) => setForm({ ...form, category: e.target.value })}
-              placeholder="مثال: كابلات"
-              onFocus={(e) => (e.target.style.borderColor = "#f97316")}
-              onBlur={(e) => (e.target.style.borderColor = "var(--border)")}
+              onChange={(v) => setForm({ ...form, category: v })}
+              suggestions={allCategories}
             />,
           )}
           {field(
@@ -181,16 +258,6 @@ export function StorageDrawer({
             placeholder="0"
             onFocus={(e) => (e.target.style.borderColor = "#f97316")}
             onBlur={(e) => (e.target.style.borderColor = "var(--border)")}
-          />,
-        )}
-
-        {/* Cost */}
-        {field(
-          "التكلفة",
-          <MoneyInput
-            value={form.cost}
-            onChange={(val) => setForm({ ...form, cost: val })}
-            defaultExchange={defaultExchange}
           />,
         )}
 

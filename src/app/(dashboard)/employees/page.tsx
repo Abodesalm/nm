@@ -125,7 +125,7 @@ export default function EmployeesPage() {
               fontSize: 13.5,
               fontFamily: "'Tajawal', sans-serif",
               outline: "none",
-              width: "100%",
+              width: "90%",
             }}
             placeholder="بحث بالاسم..."
             value={search}

@@ -47,12 +47,20 @@
 html {
   direction: rtl;
   font-size: 15px;
+  line-height: 1;
 }
 body {
   font-family: "Tajawal", sans-serif;
   background: var(--bg);
   color: var(--text);
   -webkit-font-smoothing: antialiased;
+}
+p,
+li,
+td,
+th,
+textarea {
+  line-height: 1.6;
 }
 h1,
 h2,
