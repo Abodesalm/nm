@@ -264,7 +264,7 @@ export default function EmployeeProfilePage() {
           </div>
 
           {/* Info */}
-          <div style={{ flex: 1, minWidth: 0 }}>
+          <div style={{ flex: 1, minWidth: 0, marginTop: 0 }}>
             <div
               style={{
                 display: "flex",
@@ -299,7 +299,7 @@ export default function EmployeeProfilePage() {
               style={{
                 display: "flex",
                 gap: 16,
-                marginTop: 10,
+                marginTop: 30,
                 flexWrap: "wrap",
               }}
             >

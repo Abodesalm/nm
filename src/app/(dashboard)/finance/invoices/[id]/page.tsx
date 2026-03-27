@@ -2,7 +2,7 @@
 
 import { use, useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
-import { ArrowRight, Printer, Building2, User, Package, Wifi } from "lucide-react";
+import { ArrowRight, Download, Building2, User, Package, Wifi } from "lucide-react";
 
 const TYPE_LABELS: Record<string, string> = {
   salary:         "راتب",
@@ -32,8 +32,24 @@ export default function InvoiceDetailPage({
 }) {
   const { id } = use(params);
   const router = useRouter();
-  const [invoice, setInvoice] = useState<any>(null);
-  const [loading, setLoading] = useState(true);
+  const [invoice,     setInvoice]     = useState<any>(null);
+  const [loading,     setLoading]     = useState(true);
+  const [downloading, setDownloading] = useState(false);
+
+  async function handleDownloadPDF() {
+    setDownloading(true);
+    const html2canvas = (await import("html2canvas")).default;
+    const jsPDF       = (await import("jspdf")).default;
+    const el = document.getElementById("invoice-print")!;
+    const canvas = await html2canvas(el, { scale: 2, useCORS: true, backgroundColor: "#ffffff" });
+    const imgData = canvas.toDataURL("image/png");
+    const pdf = new jsPDF({ orientation: "portrait", unit: "px", format: "a4" });
+    const w = pdf.internal.pageSize.getWidth();
+    const h = (canvas.height * w) / canvas.width;
+    pdf.addImage(imgData, "PNG", 0, 0, w, h);
+    pdf.save(`فاتورة-${invoice.invoiceNumber}.pdf`);
+    setDownloading(false);
+  }
 
   useEffect(() => {
     fetch(`/api/finance/invoices/${id}`)
@@ -65,17 +81,7 @@ export default function InvoiceDetailPage({
   const typeColor = TYPE_COLORS[invoice.type] ?? "#f97316";
 
   return (
-    <>
-      {/* Print-only hide everything except #invoice-print */}
-      <style>{`
-        @media print {
-          body > * { display: none !important; }
-          #invoice-print { display: block !important; }
-          #invoice-print * { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
-        }
-      `}</style>
-
-      <main style={{ padding: "28px 32px", maxWidth: 900, margin: "0 auto" }}>
+    <main style={{ padding: "28px 32px", maxWidth: 900, margin: "0 auto" }}>
         {/* Action bar — hidden on print */}
         <div
           className="no-print"
@@ -93,19 +99,22 @@ export default function InvoiceDetailPage({
             <ArrowRight size={16} /> رجوع
           </button>
           <button
-            onClick={() => window.print()}
+            onClick={handleDownloadPDF}
+            disabled={downloading}
             style={{
               display: "flex", alignItems: "center", gap: 8,
               height: 38, padding: "0 18px",
               borderRadius: 9, border: "none",
-              background: "#f97316", color: "#fff",
+              background: downloading ? "#d97706" : "#f97316", color: "#fff",
               fontSize: 13, fontWeight: 600,
               fontFamily: "'Tajawal', sans-serif",
-              cursor: "pointer",
+              cursor: downloading ? "wait" : "pointer",
               boxShadow: "0 2px 8px rgba(249,115,22,0.3)",
+              opacity: downloading ? 0.8 : 1,
             }}
           >
-            <Printer size={15} /> طباعة / تحميل
+            <Download size={15} />
+            {downloading ? "جاري التحميل..." : "تحميل PDF"}
           </button>
         </div>
 
@@ -318,7 +327,6 @@ export default function InvoiceDetailPage({
           </div>
         </div>
       </main>
-    </>
   );
 }
 

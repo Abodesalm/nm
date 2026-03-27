@@ -49,10 +49,10 @@ export async function POST(
       date: new Date(),
     });
 
-    // Create invoice
-    const invoiceCount = await Invoice.countDocuments();
+    // Create invoice — date is the first day of the salary's month/year
+    const lastInvoice = await Invoice.findOne({}, { invoiceNumber: 1 }).sort({ invoiceNumber: -1 }).lean();
     await Invoice.create({
-      invoiceNumber: invoiceCount + 1,
+      invoiceNumber: (lastInvoice?.invoiceNumber ?? 0) + 1,
       type: "salary",
       category: "cost",
       employee: id,
@@ -60,7 +60,7 @@ export async function POST(
       amount: body.amount,
       description: `راتب ${employee.fullName} — ${body.month}/${body.year}`,
       notes: body.notes ?? null,
-      date: new Date(),
+      date: new Date(body.year, body.month - 1, 1),
     });
 
     return ok(updated!.salaries);

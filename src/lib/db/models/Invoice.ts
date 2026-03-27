@@ -45,5 +45,5 @@ const InvoiceSchema = new Schema<IInvoice>(
   { timestamps: true }
 );
 
-delete mongoose.models["Invoice"];
+try { mongoose.deleteModel("Invoice"); } catch {}
 export default mongoose.model<IInvoice>("Invoice", InvoiceSchema);

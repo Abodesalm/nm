@@ -41,10 +41,23 @@ const inputStyle: React.CSSProperties = {
   transition: "border-color 0.15s",
 };
 
-function Field({ label, children }: { label: string; children: React.ReactNode }) {
+function Field({
+  label,
+  children,
+}: {
+  label: string;
+  children: React.ReactNode;
+}) {
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
-      <label style={{ fontSize: 13, fontWeight: 600, color: "var(--text)", fontFamily: "'Cairo', sans-serif" }}>
+      <label
+        style={{
+          fontSize: 13,
+          fontWeight: 600,
+          color: "var(--text)",
+          fontFamily: "'Cairo', sans-serif",
+        }}
+      >
         {label}
       </label>
       {children}
@@ -52,7 +65,13 @@ function Field({ label, children }: { label: string; children: React.ReactNode }
   );
 }
 
-export function ActionDrawer({ open, onClose, onSaved, item, defaultExchange = 0 }: Props) {
+export function ActionDrawer({
+  open,
+  onClose,
+  onSaved,
+  item,
+  defaultExchange = 0,
+}: Props) {
   const [actionType, setActionType] = useState("stock_in");
   const [quantity, setQuantity] = useState("");
   const [allEmployees, setAllEmployees] = useState<any[]>([]);
@@ -457,7 +476,10 @@ export function ActionDrawer({ open, onClose, onSaved, item, defaultExchange = 0
               defaultExchange={defaultExchange}
             />
             <button
-              onClick={() => { setShowCost(false); setCost({ USD: 0, SP: 0, exchange: 0 }); }}
+              onClick={() => {
+                setShowCost(false);
+                setCost({ USD: 0, SP: 0, exchange: 0 });
+              }}
               style={{
                 alignSelf: "flex-start",
                 marginTop: 4,
@@ -604,8 +626,14 @@ function SearchPicker({
       <input
         style={inputStyle}
         value={search}
-        onChange={(e) => { onSearchChange(e.target.value); setOpen(true); }}
-        onFocus={(e) => { e.target.style.borderColor = "#f97316"; setOpen(true); }}
+        onChange={(e) => {
+          onSearchChange(e.target.value);
+          setOpen(true);
+        }}
+        onFocus={(e) => {
+          e.target.style.borderColor = "#f97316";
+          setOpen(true);
+        }}
         onBlur={(e) => (e.target.style.borderColor = "var(--border)")}
         placeholder={placeholder}
       />
@@ -630,7 +658,10 @@ function SearchPicker({
           {results.map((item) => (
             <div
               key={item._id}
-              onMouseDown={() => { onSelect(item); setOpen(false); }}
+              onMouseDown={() => {
+                onSelect(item);
+                setOpen(false);
+              }}
               style={{
                 padding: "9px 12px",
                 cursor: "pointer",

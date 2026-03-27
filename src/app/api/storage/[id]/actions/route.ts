@@ -102,17 +102,17 @@ export async function POST(
 
     // Create invoice if this action has a cost
     if (body.cost && (body.cost.USD || body.cost.SP)) {
-      const invoiceCount = await Invoice.countDocuments();
+      const lastInvoice = await Invoice.findOne({}, { invoiceNumber: 1 }).sort({ invoiceNumber: -1 }).lean();
       await Invoice.create({
-        invoiceNumber: invoiceCount + 1,
+        invoiceNumber: (lastInvoice?.invoiceNumber ?? 0) + 1,
         type: "storage_action",
         category: "cost",
         storageItem: id,
         relatedId: newAction._id,
         amount: body.cost,
         description: `تكلفة ${item.name} — ${body.type}`,
-        notes: body.notes ?? null,
-        date: body.date ?? new Date(),
+        notes: body.notes || null,
+        date: body.date ? new Date(body.date) : new Date(),
       });
     }
 
