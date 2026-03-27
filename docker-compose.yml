@@ -5,10 +5,15 @@ services:
     build: .
     container_name: nextjs-app
     ports:
-      - "127.0.0.1:3000:3000"
+      - "3000:3000"
     restart: unless-stopped
     depends_on:
-      - nm-mongodb
+      nm-mongodb:
+        condition: service_healthy
+    env_file:
+      - .env.local
+    environment:
+      - MONGODB_URI=mongodb://nm-mongodb:27017/nm-system
 
   nm-mongodb:
     image: mongo:7
@@ -18,7 +23,12 @@ services:
     volumes:
       - nm-mongodb-data:/data/db
     restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "mongosh", "--eval", "db.adminCommand('ping')"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
 
 volumes:
   nm-mongodb-data:
-    external: true # Tells Compose to use the volume you already created
+    external: true
