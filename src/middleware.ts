@@ -11,6 +11,7 @@ const SECTION_PATHS: Record<string, string> = {
   finance: "/finance",
   documents: "/documents",
   settings: "/settings",
+  fieldwork: "/fieldwork",
 };
 
 export async function middleware(req: NextRequest) {

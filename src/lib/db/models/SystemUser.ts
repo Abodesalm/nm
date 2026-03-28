@@ -22,7 +22,7 @@ export interface ISystemUser extends Document {
 
 const SECTIONS = [
   "employees","storage","history","points",
-  "customers","problems","finance","documents","settings",
+  "customers","problems","finance","documents","settings","fieldwork",
 ];
 
 const SystemUserSchema = new Schema<ISystemUser>(

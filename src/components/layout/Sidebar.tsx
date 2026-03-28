@@ -19,6 +19,7 @@ import {
   Settings,
   ChevronRight,
   ChevronLeft,
+  HardHat,
 } from "lucide-react";
 import Image from "next/image";
 
@@ -49,6 +50,12 @@ const navItems = [
     label: "الوثائق",
     icon: FileText,
     section: "documents",
+  },
+  {
+    href: "/fieldwork",
+    label: "العمل الميداني",
+    icon: HardHat,
+    section: "fieldwork",
   },
   {
     href: "/settings",

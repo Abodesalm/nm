@@ -45,6 +45,10 @@ const STATUS_MAP: Record<string, { label: string; color: string; bg: string }> =
     unpaid: { label: "غير مدفوع", color: "#dc2626", bg: "rgba(220,38,38,0.1)" },
     waiting: { label: "انتظار", color: "#d97706", bg: "rgba(217,119,6,0.1)" },
     suspended: { label: "موقوف", color: "#dc2626", bg: "rgba(220,38,38,0.1)" },
+    not_arrived: { label: "لم يحضر بعد", color: "#6b7280", bg: "rgba(107,114,128,0.1)" },
+    free: { label: "حر للعمل", color: "#3b82f6", bg: "rgba(59,130,246,0.1)" },
+    working: { label: "في العمل", color: "#f97316", bg: "rgba(249,115,22,0.1)" },
+    finished: { label: "أنهى يومه", color: "#16a34a", bg: "rgba(22,163,74,0.1)" },
   };
 
 export function StatusBadge({ status }: { status: Status }) {

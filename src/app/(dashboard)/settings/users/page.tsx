@@ -35,6 +35,7 @@ const SECTIONS = [
   { key: "finance", label: "المالية" },
   { key: "documents", label: "الوثائق" },
   { key: "settings", label: "الإعدادات" },
+  { key: "fieldwork", label: "العمل الميداني" },
 ];
 
 const inputStyle: React.CSSProperties = {
