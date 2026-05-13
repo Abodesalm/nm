@@ -9,8 +9,8 @@ const settingsNav = [
   { href: "/settings/general", label: "عام", icon: Settings },
   { href: "/settings/regions", label: "المناطق", icon: Map },
   { href: "/settings/hr", label: "الموظفين", icon: Users },
-  { href: "/settings/customers", label: "الزبائن", icon: Wifi },
-  { href: "/settings/users", label: "المستخدمين", icon: UserCog },
+  /*   { href: "/settings/customers", label: "الزبائن", icon: Wifi },
+   */ { href: "/settings/users", label: "المستخدمين", icon: UserCog },
   { href: "/settings/appearance", label: "المظهر", icon: Palette },
 ];
 

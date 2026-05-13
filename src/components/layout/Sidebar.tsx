@@ -35,7 +35,7 @@ const topItems = [
 const navItems = [
   { href: "/employees", label: "الموظفين", icon: Users, section: "employees" },
   { href: "/storage", label: "التخزين", icon: Package, section: "storage" },
-  { href: "/history", label: "السجل", icon: History, section: "history" },
+  /*   { href: "/history", label: "السجل", icon: History, section: "history" },
   { href: "/points", label: "النقاط", icon: MapPin, section: "points" },
   { href: "/customers", label: "الزبائن", icon: Wifi, section: "customers" },
   {
@@ -43,14 +43,14 @@ const navItems = [
     label: "المشاكل",
     icon: AlertTriangle,
     section: "problems",
-  },
+  }, */
   { href: "/finance", label: "المالية", icon: DollarSign, section: "finance" },
-  {
+  /*   {
     href: "/documents",
     label: "الوثائق",
     icon: FileText,
     section: "documents",
-  },
+  }, */
   {
     href: "/fieldwork",
     label: "العمل الميداني",

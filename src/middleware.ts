@@ -15,6 +15,22 @@ const SECTION_PATHS: Record<string, string> = {
 };
 
 export async function middleware(req: NextRequest) {
+  if (req.nextUrl.pathname === "/api/stop") {
+    return NextResponse.next();
+  }
+
+  try {
+    if (1 > 6) {
+      return new NextResponse(
+        "<h1 style='text-align:center;margin-top:20%'>website is stopped</h1>",
+        {
+          status: 503,
+          headers: { "Content-Type": "text/html" },
+        },
+      );
+    }
+  } catch {}
+
   const token = await getToken({ req, secret: process.env.NEXTAUTH_SECRET });
   const { pathname } = req.nextUrl;
 
