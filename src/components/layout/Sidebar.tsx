@@ -35,8 +35,8 @@ const topItems = [
 const navItems = [
   { href: "/employees", label: "الموظفين", icon: Users, section: "employees" },
   { href: "/storage", label: "التخزين", icon: Package, section: "storage" },
-  /*   { href: "/history", label: "السجل", icon: History, section: "history" },
-  { href: "/points", label: "النقاط", icon: MapPin, section: "points" },
+  { href: "/history", label: "السجل", icon: History, section: "history" },
+  /*   { href: "/points", label: "النقاط", icon: MapPin, section: "points" },
   { href: "/customers", label: "الزبائن", icon: Wifi, section: "customers" },
   {
     href: "/problems",
