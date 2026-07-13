@@ -12,6 +12,7 @@ export interface IEmployee extends Document {
   department: string;
   salary: { USD: number; SP: number; exchange: number };
   state: "active" | "inactive" | "on-leave";
+  hireDate: Date;
   notes?: string;
   absents: {
     _id: mongoose.Types.ObjectId;
@@ -35,7 +36,23 @@ export interface IEmployee extends Document {
     _id: mongoose.Types.ObjectId;
     amount: { USD: number; SP: number; exchange: number };
     state: "paid" | "unpaid";
+    hidden: boolean;
     notes?: string;
+    createdAt: Date;
+  }[];
+  bonuses: {
+    _id: mongoose.Types.ObjectId;
+    type: "reward" | "compensation";
+    amount: { USD: number; SP: number; exchange: number };
+    reason?: string;
+    date: Date;
+    createdAt: Date;
+  }[];
+  hrPoints: {
+    _id: mongoose.Types.ObjectId;
+    points: number;
+    reason?: string;
+    date: Date;
     createdAt: Date;
   }[];
 }
@@ -63,6 +80,7 @@ const EmployeeSchema = new Schema<IEmployee>(
       enum: ["active", "inactive", "on-leave"],
       default: "active",
     },
+    hireDate: { type: Date, default: Date.now },
     notes: String,
     absents: [
       {
@@ -88,7 +106,29 @@ const EmployeeSchema = new Schema<IEmployee>(
       {
         amount: MoneySchema,
         state: { type: String, enum: ["paid", "unpaid"], default: "unpaid" },
+        hidden: { type: Boolean, default: false },
         notes: String,
+        createdAt: { type: Date, default: Date.now },
+      },
+    ],
+    bonuses: [
+      {
+        type: {
+          type: String,
+          enum: ["reward", "compensation"],
+          required: true,
+        },
+        amount: MoneySchema,
+        reason: String,
+        date: { type: Date, default: Date.now },
+        createdAt: { type: Date, default: Date.now },
+      },
+    ],
+    hrPoints: [
+      {
+        points: { type: Number, required: true },
+        reason: String,
+        date: { type: Date, default: Date.now },
         createdAt: { type: Date, default: Date.now },
       },
     ],
@@ -96,5 +136,6 @@ const EmployeeSchema = new Schema<IEmployee>(
   { timestamps: true }
 );
 
-export default mongoose.models.Employee ||
-  mongoose.model<IEmployee>("Employee", EmployeeSchema);
+// Delete cached model so schema changes are picked up on hot reload
+delete mongoose.models["Employee"];
+export default mongoose.model<IEmployee>("Employee", EmployeeSchema);

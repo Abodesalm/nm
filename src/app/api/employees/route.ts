@@ -30,6 +30,7 @@ export async function GET(req: NextRequest) {
       department: "department",
       role: "role",
       salary: "salary.USD",
+      seniority: "hireDate",
     };
     const sortField = sortMap[sortBy] ?? "id_num";
     const sort: Record<string, 1 | -1> = {
@@ -38,7 +39,7 @@ export async function GET(req: NextRequest) {
 
     const total = await Employee.countDocuments(query);
     const employees = await Employee.find(query)
-      .select("-absents -salaries -loans")
+      .select("-absents -salaries -loans -bonuses")
       .sort(sort)
       .skip((page - 1) * limit)
       .limit(limit);

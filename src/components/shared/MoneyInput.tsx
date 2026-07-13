@@ -92,17 +92,18 @@ export function MoneyInput({
       style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 10 }}
     >
       {[
-        {
-          label: "USD",
-          value: usd,
-          onChange: handleUsdChange,
-          placeholder: "0.00",
-        },
+        // SYP first — it is the primary currency of the system
         {
           label: "ل.س",
           value: sp,
           onChange: handleSpChange,
           placeholder: "0.0",
+        },
+        {
+          label: "USD",
+          value: usd,
+          onChange: handleUsdChange,
+          placeholder: "0.00",
         },
         {
           label: "سعر الصرف",

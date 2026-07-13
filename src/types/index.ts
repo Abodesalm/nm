@@ -52,11 +52,12 @@ export interface Settings {
   packs: Pack[];
 }
 
-// System User
+// System User — login is by username; email optional
 export interface SystemUser {
   _id: string;
   name: string;
-  email: string;
+  username: string;
+  email?: string;
   isSuperAdmin: boolean;
   permissions: {
     section: string;
@@ -80,9 +81,75 @@ export interface Employee {
   department: string;
   salary: MoneyField;
   state: "active" | "inactive" | "on-leave";
+  hireDate: Date;
   notes?: string;
+  salaries: {
+    _id: string;
+    month: number;
+    year: number;
+    amount: MoneyField;
+    reward: MoneyField;
+    notes?: string;
+    paidAt: Date;
+  }[];
+  loans: {
+    _id: string;
+    amount: MoneyField;
+    state: "paid" | "unpaid";
+    hidden: boolean;
+    notes?: string;
+    createdAt: Date;
+  }[];
+  bonuses: {
+    _id: string;
+    type: "reward" | "compensation";
+    amount: MoneyField;
+    reason?: string;
+    date: Date;
+    createdAt: Date;
+  }[];
+  hrPoints: {
+    _id: string;
+    points: number;
+    reason?: string;
+    date: Date;
+    createdAt: Date;
+  }[];
   createdAt: Date;
   updatedAt: Date;
+}
+
+// Treasury entry — real money movement in/out of the company box
+export interface TreasuryEntry {
+  _id: string;
+  type: "deposit" | "withdraw";
+  source: "manual" | "invoice" | "loan";
+  amount: MoneyField;
+  description: string;
+  notes?: string;
+  relatedInvoice?: string | null;
+  relatedLoan?: string | null;
+  date: Date;
+}
+
+// Company loan (not employee loans)
+export interface Loan {
+  _id: string;
+  direction: "on_us" | "for_us";
+  party: string;
+  amount: MoneyField;
+  payments: {
+    _id: string;
+    amount: MoneyField;
+    notes?: string;
+    date: Date;
+  }[];
+  status: "open" | "paid";
+  affectsTreasury: boolean;
+  relatedStorageItem?: string | null;
+  relatedActionId?: string | null;
+  notes?: string;
+  date: Date;
 }
 
 // Storage Item

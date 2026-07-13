@@ -2,7 +2,7 @@ import mongoose, { Schema, Document } from "mongoose";
 
 export interface IInvoice extends Document {
   invoiceNumber: number;
-  type: "salary" | "subscription" | "storage_action";
+  type: "salary" | "subscription" | "storage_action" | "bonus";
   category: "cost" | "earn";
   employee?: mongoose.Types.ObjectId | null;
   customer?: mongoose.Types.ObjectId | null;
@@ -25,7 +25,7 @@ const InvoiceSchema = new Schema<IInvoice>(
     invoiceNumber: { type: Number, required: true, unique: true },
     type: {
       type: String,
-      enum: ["salary", "subscription", "storage_action"],
+      enum: ["salary", "subscription", "storage_action", "bonus"],
       required: true,
     },
     category: {

@@ -399,6 +399,7 @@ export default function UsersSettingsPage() {
 
   const [addForm, setAddForm] = useState({
     name: "",
+    username: "",
     email: "",
     password: "",
     permissions: SECTIONS.map((s) => ({
@@ -439,6 +440,7 @@ export default function UsersSettingsPage() {
     setShowAdd(false);
     setAddForm({
       name: "",
+      username: "",
       email: "",
       password: "",
       permissions: SECTIONS.map((s) => ({
@@ -692,7 +694,7 @@ export default function UsersSettingsPage() {
                     )}
                   </div>
                   <p style={{ fontSize: 12, color: "var(--text-muted)" }}>
-                    {user.email}
+                    {(user as any).username ?? user.email}
                   </p>
                 </div>
 
@@ -930,11 +932,17 @@ export default function UsersSettingsPage() {
                 key: "name",
                 label: "الاسم",
                 type: "text",
-                placeholder: "اسم المستخدم",
+                placeholder: "الاسم الكامل",
+              },
+              {
+                key: "username",
+                label: "اسم المستخدم (للدخول)",
+                type: "text",
+                placeholder: "username",
               },
               {
                 key: "email",
-                label: "البريد الإلكتروني",
+                label: "البريد الإلكتروني (اختياري)",
                 type: "email",
                 placeholder: "email@example.com",
               },

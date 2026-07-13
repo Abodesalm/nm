@@ -10,7 +10,7 @@ export default function LoginPage() {
   const router = useRouter();
   const [loading, setLoading] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
-  const [form, setForm] = useState({ email: "", password: "" });
+  const [form, setForm] = useState({ username: "", password: "" });
   const searchParams = useSearchParams();
   const forced = searchParams.get("reason") === "forced";
 
@@ -18,13 +18,13 @@ export default function LoginPage() {
     e.preventDefault();
     setLoading(true);
     const res = await signIn("credentials", {
-      email: form.email,
+      username: form.username,
       password: form.password,
       redirect: false,
     });
     setLoading(false);
     if (res?.error) {
-      toast.error("البريد الإلكتروني أو كلمة المرور غير صحيحة");
+      toast.error("اسم المستخدم أو كلمة المرور غير صحيحة");
     } else {
       router.push("/");
       router.refresh();
@@ -296,16 +296,18 @@ export default function LoginPage() {
 
           <form onSubmit={handleSubmit}>
             <div className="field">
-              <label htmlFor="email">البريد الإلكتروني</label>
+              <label htmlFor="username">اسم المستخدم</label>
               <div className="input-wrap">
                 <input
-                  id="email"
-                  type="email"
-                  placeholder="أدخل بريدك الإلكتروني"
-                  value={form.email}
-                  onChange={(e) => setForm({ ...form, email: e.target.value })}
+                  id="username"
+                  type="text"
+                  placeholder="أدخل اسم المستخدم"
+                  value={form.username}
+                  onChange={(e) =>
+                    setForm({ ...form, username: e.target.value })
+                  }
                   required
-                  autoComplete="email"
+                  autoComplete="username"
                 />
               </div>
             </div>

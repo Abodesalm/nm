@@ -2,7 +2,8 @@ import mongoose, { Schema, Document } from "mongoose";
 
 export interface ISystemUser extends Document {
   name: string;
-  email: string;
+  username: string;
+  email?: string;
   password: string;
   isSuperAdmin: boolean;
   permissions: {
@@ -28,7 +29,9 @@ const SECTIONS = [
 const SystemUserSchema = new Schema<ISystemUser>(
   {
     name: { type: String, required: true },
-    email: { type: String, required: true, unique: true },
+    // Login identifier. sparse so pre-username users don't collide on null.
+    username: { type: String, unique: true, sparse: true, trim: true, lowercase: true },
+    email: { type: String, unique: true, sparse: true },
     password: { type: String, required: true },
     isSuperAdmin: { type: Boolean, default: false },
     permissions: [

@@ -37,6 +37,7 @@ const emptyForm = {
   role: "",
   department: "",
   state: "active",
+  hireDate: new Date().toISOString().split("T")[0],
   notes: "",
   salary: { USD: 0, SP: 0, exchange: 0 },
 };
@@ -77,6 +78,9 @@ export function EmployeeDrawer({
         role: employee.role,
         department: employee.department,
         state: employee.state,
+        hireDate: new Date(employee.hireDate ?? employee.createdAt)
+          .toISOString()
+          .split("T")[0],
         notes: employee.notes ?? "",
         salary: employee.salary ?? { USD: 0, SP: 0, exchange: 0 },
       });
@@ -401,19 +405,34 @@ export function EmployeeDrawer({
           )}
         </div>
 
-        {/* State */}
-        {field(
-          "الحالة",
-          <select
-            style={{ ...inputStyle, cursor: "pointer" }}
-            value={form.state}
-            onChange={(e) => setForm({ ...form, state: e.target.value })}
-          >
-            <option value="active">نشط</option>
-            <option value="inactive">غير نشط</option>
-            <option value="on-leave">إجازة</option>
-          </select>,
-        )}
+        {/* State + Hire date */}
+        <div
+          style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}
+        >
+          {field(
+            "الحالة",
+            <select
+              style={{ ...inputStyle, cursor: "pointer" }}
+              value={form.state}
+              onChange={(e) => setForm({ ...form, state: e.target.value })}
+            >
+              <option value="active">نشط</option>
+              <option value="inactive">غير نشط</option>
+              <option value="on-leave">إجازة</option>
+            </select>,
+          )}
+          {field(
+            "تاريخ التوظيف",
+            <input
+              style={inputStyle}
+              type="date"
+              value={form.hireDate}
+              onChange={(e) => setForm({ ...form, hireDate: e.target.value })}
+              onFocus={(e) => (e.target.style.borderColor = "#f97316")}
+              onBlur={(e) => (e.target.style.borderColor = "var(--border)")}
+            />,
+          )}
+        </div>
 
         {/* Address */}
         {field(

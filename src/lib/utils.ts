@@ -34,6 +34,40 @@ export function calcMoney(
   }
 }
 
+// Seniority — how long an employee has been in the company
+export function seniorityParts(hireDate: Date | string) {
+  const start = new Date(hireDate);
+  const now = new Date();
+  let months =
+    (now.getFullYear() - start.getFullYear()) * 12 +
+    (now.getMonth() - start.getMonth());
+  if (now.getDate() < start.getDate()) months -= 1;
+  months = Math.max(0, months);
+  return { years: Math.floor(months / 12), months: months % 12 };
+}
+
+export function formatSeniority(hireDate: Date | string) {
+  const { years, months } = seniorityParts(hireDate);
+  if (years === 0 && months === 0) return "أقل من شهر";
+  const y =
+    years === 0
+      ? ""
+      : years === 1
+        ? "سنة"
+        : years === 2
+          ? "سنتان"
+          : `${years} سنوات`;
+  const m =
+    months === 0
+      ? ""
+      : months === 1
+        ? "شهر"
+        : months === 2
+          ? "شهران"
+          : `${months} أشهر`;
+  return [y, m].filter(Boolean).join(" و");
+}
+
 // Port calculation for points
 export function calcPorts(switches: number) {
   const totalPorts = switches * 8 - (switches - 1) * 2;

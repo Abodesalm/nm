@@ -34,6 +34,7 @@ function sumByType(docs: any[]) {
     salary:         emptyMoney(),
     subscription:   emptyMoney(),
     storage_action: emptyMoney(),
+    bonus:          emptyMoney(),
   };
   for (const doc of docs) {
     const t = doc.type as string;
@@ -82,12 +83,13 @@ export async function GET(req: NextRequest) {
         const d2 = new Date(d.date);
         return d2.getFullYear() === year && d2.getMonth() + 1 === m;
       });
+      // Chart is SYP-primary
       const costs = monthDocs
         .filter((d: any) => d.category === "cost")
-        .reduce((s: number, d: any) => s + (d.amount?.USD ?? 0), 0);
+        .reduce((s: number, d: any) => s + (d.amount?.SP ?? 0), 0);
       const earns = monthDocs
         .filter((d: any) => d.category === "earn")
-        .reduce((s: number, d: any) => s + (d.amount?.USD ?? 0), 0);
+        .reduce((s: number, d: any) => s + (d.amount?.SP ?? 0), 0);
       return { month: m, label: ARABIC_MONTHS[i], costs, earns };
     });
 

@@ -6,6 +6,7 @@ import { StatusBadge } from "@/components/shared/StatusBadge";
 import { Pagination } from "@/components/shared/Pagination";
 import { ConfirmDialog } from "@/components/shared/ConfirmDialog";
 import { PageSpinner } from "@/components/shared/Spinner";
+import { formatSeniority } from "@/lib/utils";
 import {
   MoreHorizontal,
   Pencil,
@@ -19,6 +20,7 @@ import {
   ChevronDown,
   Columns,
   Check,
+  Star,
 } from "lucide-react";
 
 const COLUMNS = [
@@ -28,6 +30,8 @@ const COLUMNS = [
   { key: "department", label: "القسم", sortable: true },
   { key: "phone", label: "الهاتف", sortable: false },
   { key: "salary", label: "الراتب", sortable: true },
+  { key: "seniority", label: "الأقدمية", sortable: true },
+  { key: "hrPoints", label: "نقاط التقييم", sortable: false },
   { key: "state", label: "الحالة", sortable: false },
 ];
 
@@ -425,6 +429,36 @@ export function EmployeeTable({
                               ) : (
                                 "—"
                               ))}
+                            {col.key === "seniority" && (
+                              <span style={{ color: "var(--text-muted)" }}>
+                                {formatSeniority(
+                                  emp.hireDate ?? emp.createdAt,
+                                )}
+                              </span>
+                            )}
+                            {col.key === "hrPoints" && (
+                              <span
+                                style={{
+                                  display: "inline-flex",
+                                  alignItems: "center",
+                                  gap: 5,
+                                  padding: "2px 10px",
+                                  borderRadius: 20,
+                                  fontSize: 12,
+                                  fontWeight: 700,
+                                  fontFamily: "'Cairo', sans-serif",
+                                  background: "rgba(234,179,8,0.1)",
+                                  color: "#eab308",
+                                }}
+                              >
+                                <Star size={11} />
+                                {(emp.hrPoints ?? []).reduce(
+                                  (acc: number, p: any) =>
+                                    acc + (p.points ?? 0),
+                                  0,
+                                )}
+                              </span>
+                            )}
                             {col.key === "state" && (
                               <StatusBadge status={emp.state} />
                             )}

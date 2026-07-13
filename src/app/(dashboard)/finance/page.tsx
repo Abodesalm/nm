@@ -7,6 +7,7 @@ import {
   Users,
   Wifi,
   Package,
+  Award,
   Search,
   FileDown,
   ChevronLeft,
@@ -23,6 +24,7 @@ import {
   Legend,
 } from "recharts";
 import { InvoiceTable } from "@/components/finance/InvoiceTable";
+import { TreasurySection } from "@/components/finance/TreasurySection";
 import { downloadXLSX } from "@/lib/exportXLSX";
 
 // ─── helpers ─────────────────────────────────────────────────────────────────
@@ -46,7 +48,7 @@ function StatCard({
   label,
   usd,
   sp,
-  prevUsd,
+  prevSp,
   icon: Icon,
   color,
   invertGood,
@@ -54,12 +56,12 @@ function StatCard({
   label: string;
   usd: number;
   sp: number;
-  prevUsd: number;
+  prevSp: number;
   icon: React.ElementType;
   color: string;
   invertGood: boolean; // true = lower change is good (costs), false = higher is good (earns)
 }) {
-  const diff = pct(usd, prevUsd);
+  const diff = pct(sp, prevSp);
   const isPositive = diff >= 0;
   const isGood = invertGood ? !isPositive : isPositive;
 
@@ -93,8 +95,8 @@ function StatCard({
 
       <div>
         <div style={{ display: "flex", alignItems: "baseline", gap: 8, flexWrap: "wrap" }}>
-          <span style={{ fontSize: 26, fontWeight: 700, color: "var(--text)", fontFamily: "'Cairo', sans-serif" }}>
-            ${fmtUSD(usd)}
+          <span style={{ fontSize: 24, fontWeight: 700, color: "var(--text)", fontFamily: "'Cairo', sans-serif" }}>
+            {fmtSP(sp)} <span style={{ fontSize: 13 }}>ل.س</span>
           </span>
           <span
             style={{
@@ -108,9 +110,9 @@ function StatCard({
             {isPositive ? "+" : ""}{diff}%
           </span>
         </div>
-        {sp > 0 && (
+        {usd > 0 && (
           <div style={{ fontSize: 12, color: "var(--text-muted)", fontFamily: "'Tajawal', sans-serif", marginTop: 2 }}>
-            {fmtSP(sp)} ل.س
+            ≈ ${fmtUSD(usd)}
           </div>
         )}
         <div style={{ fontSize: 11, color: "var(--text-muted)", fontFamily: "'Tajawal', sans-serif", marginTop: 4 }}>
@@ -166,7 +168,7 @@ function ChartTooltip({ active, payload, label }: any) {
         <div key={p.dataKey} style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 3 }}>
           <span style={{ width: 8, height: 8, borderRadius: "50%", background: p.color, display: "inline-block" }} />
           <span style={{ color: "var(--text-muted)" }}>{p.name === "costs" ? "تكاليف" : "دخل"}:</span>
-          <span style={{ fontWeight: 600, color: "var(--text)" }}>${fmtUSD(p.value)}</span>
+          <span style={{ fontWeight: 600, color: "var(--text)" }}>{fmtSP(p.value)} ل.س</span>
         </div>
       ))}
     </div>
@@ -211,13 +213,19 @@ export default function FinancePage() {
     });
     const res  = await fetch(`/api/finance/invoices?${params}`);
     const json = await res.json();
+    const typeLabels: Record<string, string> = {
+      salary: "راتب",
+      subscription: "اشتراك",
+      storage_action: "تكلفة مخزن",
+      bonus: "مكافأة/تعويض",
+    };
     const rows = (json.data?.invoices ?? []).map((inv: any) => ({
       "رقم الفاتورة": `#${inv.invoiceNumber}`,
-      "النوع":        inv.type === "salary" ? "راتب" : inv.type === "subscription" ? "اشتراك" : "تكلفة مخزن",
+      "النوع":        typeLabels[inv.type] ?? inv.type,
       "الفئة":        inv.category === "earn" ? "دخل" : "تكلفة",
       "الوصف":        inv.description,
-      "المبلغ ($)":   inv.amount?.USD ?? 0,
       "المبلغ (ل.س)": inv.amount?.SP  ?? 0,
+      "المبلغ ($)":   inv.amount?.USD ?? 0,
       "التاريخ":      new Date(inv.date).toLocaleDateString("ar-SY"),
     }));
     downloadXLSX(rows, `فواتير-${new Date().toISOString().slice(0, 10)}`);
@@ -241,6 +249,9 @@ export default function FinancePage() {
         </p>
       </div>
 
+      {/* ── Row 0: treasury box + open loans ── */}
+      <TreasurySection />
+
       {/* ── Row 1: 2 big stat cards + monthly chart ── */}
       <div
         style={{
@@ -262,7 +273,7 @@ export default function FinancePage() {
               label="إجمالي التكاليف هذا الشهر"
               usd={c?.costs?.USD ?? 0}
               sp={c?.costs?.SP ?? 0}
-              prevUsd={p?.costs?.USD ?? 0}
+              prevSp={p?.costs?.SP ?? 0}
               icon={TrendingDown}
               color="#ef4444"
               invertGood={true}
@@ -271,7 +282,7 @@ export default function FinancePage() {
               label="إجمالي الدخل هذا الشهر"
               usd={c?.earns?.USD ?? 0}
               sp={c?.earns?.SP ?? 0}
-              prevUsd={p?.earns?.USD ?? 0}
+              prevSp={p?.earns?.SP ?? 0}
               icon={TrendingUp}
               color="#22c55e"
               invertGood={false}
@@ -347,26 +358,35 @@ export default function FinancePage() {
         )}
       </div>
 
-      {/* ── Row 2: 3 sub-stat cards ── */}
-      <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 16, marginBottom: 28 }}>
+      {/* ── Row 2: 4 sub-stat cards ── */}
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 16, marginBottom: 28 }}>
         {loading ? (
-          <><SkeletonCard /><SkeletonCard /><SkeletonCard /></>
+          <><SkeletonCard /><SkeletonCard /><SkeletonCard /><SkeletonCard /></>
         ) : (
           <>
             <StatCard
               label="الرواتب هذا الشهر"
               usd={ct?.salary?.USD ?? 0}
               sp={ct?.salary?.SP ?? 0}
-              prevUsd={pt?.salary?.USD ?? 0}
+              prevSp={pt?.salary?.SP ?? 0}
               icon={Users}
               color="#3b82f6"
+              invertGood={true}
+            />
+            <StatCard
+              label="المكافآت والتعويضات"
+              usd={ct?.bonus?.USD ?? 0}
+              sp={ct?.bonus?.SP ?? 0}
+              prevSp={pt?.bonus?.SP ?? 0}
+              icon={Award}
+              color="#8b5cf6"
               invertGood={true}
             />
             <StatCard
               label="الاشتراكات هذا الشهر"
               usd={ct?.subscription?.USD ?? 0}
               sp={ct?.subscription?.SP ?? 0}
-              prevUsd={pt?.subscription?.USD ?? 0}
+              prevSp={pt?.subscription?.SP ?? 0}
               icon={Wifi}
               color="#22c55e"
               invertGood={false}
@@ -375,7 +395,7 @@ export default function FinancePage() {
               label="تكاليف المخزن هذا الشهر"
               usd={ct?.storage_action?.USD ?? 0}
               sp={ct?.storage_action?.SP ?? 0}
-              prevUsd={pt?.storage_action?.USD ?? 0}
+              prevSp={pt?.storage_action?.SP ?? 0}
               icon={Package}
               color="#f97316"
               invertGood={true}
@@ -437,6 +457,7 @@ export default function FinancePage() {
           >
             <option value="">كل الأنواع</option>
             <option value="salary">رواتب</option>
+            <option value="bonus">مكافآت وتعويضات</option>
             <option value="subscription">اشتراكات</option>
             <option value="storage_action">تكاليف مخزن</option>
           </select>

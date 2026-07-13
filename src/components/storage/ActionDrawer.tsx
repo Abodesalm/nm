@@ -83,6 +83,9 @@ export function ActionDrawer({
   const [date, setDate] = useState(new Date().toISOString().split("T")[0]);
   const [showCost, setShowCost] = useState(false);
   const [cost, setCost] = useState({ USD: 0, SP: 0, exchange: 0 });
+  const [isLoan, setIsLoan] = useState(false);
+  const [loanParty, setLoanParty] = useState("");
+  const [paidNow, setPaidNow] = useState({ USD: 0, SP: 0, exchange: 0 });
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
 
@@ -107,6 +110,9 @@ export function ActionDrawer({
       setDate(new Date().toISOString().split("T")[0]);
       setShowCost(false);
       setCost({ USD: 0, SP: 0, exchange: 0 });
+      setIsLoan(false);
+      setLoanParty("");
+      setPaidNow({ USD: 0, SP: 0, exchange: 0 });
       setError("");
       setAllPoints([]);
       setPointSearch("");
@@ -176,6 +182,10 @@ export function ActionDrawer({
       setError("الكمية مطلوبة وأكبر من صفر");
       return;
     }
+    if (showCost && isLoan && !loanParty.trim()) {
+      setError("اسم الجهة الدائنة مطلوب للشراء بالدين");
+      return;
+    }
     setSaving(true);
     setError("");
 
@@ -183,10 +193,15 @@ export function ActionDrawer({
       type: actionType,
       quantity: Number(quantity),
       notes,
+      date,
       employee: selectedEmployee?._id ?? null,
       goal_model: goalModel || null,
       goal_id: selectedGoal?._id ?? null,
       cost: showCost ? cost : null,
+      loan:
+        showCost && isLoan
+          ? { enabled: true, party: loanParty, paidNow }
+          : null,
     };
 
     const res = await fetch(`/api/storage/${item._id}/actions`, {
@@ -475,10 +490,134 @@ export function ActionDrawer({
               onChange={setCost}
               defaultExchange={defaultExchange}
             />
+
+            {/* Buy on credit */}
+            <div
+              style={{
+                marginTop: 10,
+                padding: "10px 12px",
+                borderRadius: 9,
+                background: isLoan ? "rgba(239,68,68,0.05)" : "var(--surface)",
+                border: `1px solid ${isLoan ? "rgba(239,68,68,0.25)" : "var(--border)"}`,
+                display: "flex",
+                flexDirection: "column",
+                gap: 10,
+              }}
+            >
+              <div
+                style={{
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "space-between",
+                }}
+              >
+                <div>
+                  <p
+                    style={{
+                      fontSize: 13,
+                      fontWeight: 600,
+                      color: isLoan ? "#ef4444" : "var(--text)",
+                      fontFamily: "'Tajawal', sans-serif",
+                    }}
+                  >
+                    شراء بالدين
+                  </p>
+                  <p
+                    style={{
+                      fontSize: 11.5,
+                      color: "var(--text-muted)",
+                      marginTop: 2,
+                    }}
+                  >
+                    التكلفة تبقى ديناً علينا — يُسجل في قسم المالية
+                  </p>
+                </div>
+                <button
+                  onClick={() => setIsLoan(!isLoan)}
+                  style={{
+                    width: 44,
+                    height: 24,
+                    borderRadius: 99,
+                    background: isLoan ? "#ef4444" : "var(--border)",
+                    border: "none",
+                    cursor: "pointer",
+                    position: "relative",
+                    transition: "background 0.2s",
+                    flexShrink: 0,
+                  }}
+                >
+                  <div
+                    style={{
+                      position: "absolute",
+                      top: 3,
+                      right: isLoan ? 3 : undefined,
+                      left: isLoan ? undefined : 3,
+                      width: 18,
+                      height: 18,
+                      borderRadius: "50%",
+                      background: "#fff",
+                      transition: "all 0.2s",
+                    }}
+                  />
+                </button>
+              </div>
+
+              {isLoan && (
+                <>
+                  <div
+                    style={{ display: "flex", flexDirection: "column", gap: 6 }}
+                  >
+                    <label
+                      style={{
+                        fontSize: 12,
+                        fontWeight: 600,
+                        color: "var(--text-muted)",
+                        fontFamily: "'Cairo', sans-serif",
+                      }}
+                    >
+                      الجهة الدائنة (المورّد)
+                    </label>
+                    <input
+                      style={inputStyle}
+                      value={loanParty}
+                      onChange={(e) => setLoanParty(e.target.value)}
+                      placeholder="اسم الشخص أو الجهة..."
+                      onFocus={(e) => (e.target.style.borderColor = "#f97316")}
+                      onBlur={(e) =>
+                        (e.target.style.borderColor = "var(--border)")
+                      }
+                    />
+                  </div>
+                  <div
+                    style={{ display: "flex", flexDirection: "column", gap: 6 }}
+                  >
+                    <label
+                      style={{
+                        fontSize: 12,
+                        fontWeight: 600,
+                        color: "var(--text-muted)",
+                        fontFamily: "'Cairo', sans-serif",
+                      }}
+                    >
+                      المبلغ المدفوع الآن (اختياري — الباقي دين)
+                    </label>
+                    <MoneyInput
+                      value={paidNow}
+                      onChange={setPaidNow}
+                      defaultExchange={cost.exchange || defaultExchange}
+                    />
+                  </div>
+                </>
+              )}
+            </div>
+
             <button
               onClick={() => {
                 setShowCost(false);
                 setCost({ USD: 0, SP: 0, exchange: 0 });
+                setIsLoan(false);
+                setLoanParty("");
+                setPaidNow({ USD: 0, SP: 0, exchange: 0 });
               }}
               style={{
                 alignSelf: "flex-start",

@@ -132,6 +132,7 @@ export function SalariesDrawer({
         notes,
         month: selectedMonth + 1,
         year,
+        deductLoans: takeLoans,
       }),
     });
 

@@ -4,7 +4,15 @@ import StorageItem from "@/lib/db/models/StorageItem";
 import History from "@/lib/db/models/History";
 import Point from "@/lib/db/models/Point";
 import Invoice from "@/lib/db/models/Invoice";
+import Loan from "@/lib/db/models/Loan";
 import { permissionGuard, ok, err } from "@/lib/api-factory";
+import {
+  addTreasuryEntry,
+  deleteTreasuryEntriesByInvoice,
+  deleteTreasuryEntriesByLoan,
+  nextInvoiceNumber,
+} from "@/lib/treasury";
+import { isLoanSettled } from "@/lib/loans";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 
@@ -67,6 +75,12 @@ export async function POST(
     const item = await StorageItem.findById(id);
     if (!item) return err("العنصر غير موجود", 404);
 
+    if (body.loan?.enabled) {
+      if (!body.cost || (!body.cost.USD && !body.cost.SP))
+        return err("الشراء بالدين يتطلب تكلفة");
+      if (!body.loan.party?.trim()) return err("اسم الجهة الدائنة مطلوب");
+    }
+
     item.actions.push(body);
     const { current, borrowed } = recalcQuantities(item.actions);
     item.currentQuantity = current;
@@ -102,9 +116,8 @@ export async function POST(
 
     // Create invoice if this action has a cost
     if (body.cost && (body.cost.USD || body.cost.SP)) {
-      const lastInvoice = await Invoice.findOne({}, { invoiceNumber: 1 }).sort({ invoiceNumber: -1 }).lean();
-      await Invoice.create({
-        invoiceNumber: (lastInvoice?.invoiceNumber ?? 0) + 1,
+      const invoice = await Invoice.create({
+        invoiceNumber: await nextInvoiceNumber(),
         type: "storage_action",
         category: "cost",
         storageItem: id,
@@ -114,6 +127,51 @@ export async function POST(
         notes: body.notes || null,
         date: body.date ? new Date(body.date) : new Date(),
       });
+
+      if (body.loan?.enabled) {
+        // Credit purchase: full cost owed to the supplier; only the
+        // paid-now part leaves the box. The rest is tracked as a loan.
+        const paidNow = body.loan.paidNow;
+        const hasPaidNow = paidNow && (paidNow.USD || paidNow.SP);
+
+        const loan = await Loan.create({
+          direction: "on_us",
+          party: body.loan.party.trim(),
+          amount: body.cost,
+          payments: hasPaidNow
+            ? [{ amount: paidNow, notes: "دفعة أولى عند الشراء", date: body.date ? new Date(body.date) : new Date() }]
+            : [],
+          status: "open",
+          affectsTreasury: false,
+          relatedStorageItem: id,
+          relatedActionId: newAction._id,
+          notes: body.notes ?? null,
+          date: body.date ? new Date(body.date) : new Date(),
+        });
+        loan.status = isLoanSettled(loan) ? "paid" : "open";
+        await loan.save();
+
+        if (hasPaidNow) {
+          await addTreasuryEntry({
+            type: "withdraw",
+            source: "loan",
+            amount: paidNow,
+            description: `دفعة أولى — شراء ${item.name} بالدين من ${loan.party}`,
+            relatedLoan: loan._id.toString(),
+            date: body.date ?? null,
+          });
+        }
+      } else {
+        // Fully-paid purchase: the whole cost leaves the box now
+        await addTreasuryEntry({
+          type: "withdraw",
+          source: "invoice",
+          amount: body.cost,
+          description: `شراء ${item.name} — ${body.type}`,
+          relatedInvoice: invoice._id.toString(),
+          date: body.date ?? null,
+        });
+      }
     }
 
     return ok(item);
@@ -153,9 +211,20 @@ export async function DELETE(
       await removeFromPointEquipment(String(action.goal_id), id, action.quantity);
     }
 
-    // Delete history log and invoice
+    // Delete history log, invoice, loan and their box movements
     await History.deleteOne({ relatedId: actionId });
-    await Invoice.deleteOne({ relatedId: actionId });
+
+    const invoice = await Invoice.findOne({ relatedId: actionId });
+    if (invoice) {
+      await deleteTreasuryEntriesByInvoice(invoice._id.toString());
+      await Invoice.deleteOne({ _id: invoice._id });
+    }
+
+    const loan = await Loan.findOne({ relatedActionId: actionId });
+    if (loan) {
+      await deleteTreasuryEntriesByLoan(loan._id.toString());
+      await Loan.deleteOne({ _id: loan._id });
+    }
 
     return ok(item);
   } catch (e: any) {

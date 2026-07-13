@@ -17,8 +17,8 @@ const COLUMNS = [
   { key: "type",          label: "النوع",          sortable: false },
   { key: "category",      label: "الفئة",          sortable: false },
   { key: "party",         label: "الطرف المعني",   sortable: false },
-  { key: "amountUSD",     label: "المبلغ ($)",     sortable: true  },
   { key: "amountSP",      label: "المبلغ (ل.س)",  sortable: true  },
+  { key: "amountUSD",     label: "المبلغ ($)",     sortable: true  },
   { key: "date",          label: "التاريخ",        sortable: true  },
 ];
 
@@ -28,12 +28,14 @@ const TYPE_LABELS: Record<string, string> = {
   salary:         "راتب",
   subscription:   "اشتراك",
   storage_action: "تكلفة مخزن",
+  bonus:          "مكافأة/تعويض",
 };
 
 const TYPE_COLORS: Record<string, string> = {
   salary:         "#3b82f6",
   subscription:   "#22c55e",
   storage_action: "#f97316",
+  bonus:          "#8b5cf6",
 };
 
 interface Props {
@@ -314,14 +316,14 @@ export function InvoiceTable({
                             </span>
                           )}
                           {col.key === "party"      && <span style={{ color: "var(--text-muted)" }}>{partyLabel(inv)}</span>}
-                          {col.key === "amountUSD"  && (
+                          {col.key === "amountSP"   && (
                             <span style={{ fontWeight: 600 }}>
-                              {(inv.amount?.USD ?? 0).toLocaleString("en")} $
+                              {(inv.amount?.SP ?? 0).toLocaleString("en")} ل.س
                             </span>
                           )}
-                          {col.key === "amountSP"   && (
+                          {col.key === "amountUSD"  && (
                             <span style={{ color: "var(--text-muted)" }}>
-                              {(inv.amount?.SP ?? 0).toLocaleString("en")} ل.س
+                              {(inv.amount?.USD ?? 0).toLocaleString("en")} $
                             </span>
                           )}
                           {col.key === "date"       && <span style={{ color: "var(--text-muted)" }}>{formatDate(inv.date)}</span>}

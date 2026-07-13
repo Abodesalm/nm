@@ -10,16 +10,20 @@ export const authOptions: NextAuthOptions = {
     CredentialsProvider({
       name: "credentials",
       credentials: {
-        email: { label: "Email", type: "email" },
+        username: { label: "Username", type: "text" },
         password: { label: "Password", type: "password" },
       },
       async authorize(credentials, req) {
         try {
-          if (!credentials?.email || !credentials?.password) return null;
+          if (!credentials?.username || !credentials?.password) return null;
 
           await connectDB();
 
-          const user = await SystemUser.findOne({ email: credentials.email });
+          // Username is the login key; email kept as fallback for old accounts
+          const identifier = credentials.username.trim();
+          const user = await SystemUser.findOne({
+            $or: [{ username: identifier.toLowerCase() }, { email: identifier }],
+          });
           if (!user) return null;
 
           const isValid = await bcrypt.compare(
@@ -52,6 +56,7 @@ export const authOptions: NextAuthOptions = {
           return {
             id: user._id.toString(),
             name: user.name,
+            username: user.username,
             email: user.email,
             isSuperAdmin: user.isSuperAdmin,
             permissions: user.permissions,
@@ -68,6 +73,7 @@ export const authOptions: NextAuthOptions = {
     async jwt({ token, user }) {
       if (user) {
         token.id = user.id;
+        token.username = (user as any).username;
         token.isSuperAdmin = (user as any).isSuperAdmin;
         token.permissions = (user as any).permissions;
         token.sessionId = (user as any).sessionId;
@@ -77,6 +83,7 @@ export const authOptions: NextAuthOptions = {
     async session({ session, token }) {
       if (session.user) {
         (session.user as any).id = token.id;
+        (session.user as any).username = token.username;
         (session.user as any).isSuperAdmin = token.isSuperAdmin;
         (session.user as any).permissions = token.permissions;
         (session.user as any).sessionId = token.sessionId;

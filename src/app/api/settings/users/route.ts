@@ -37,22 +37,31 @@ export async function POST(req: NextRequest) {
   if (denied) return denied;
   try {
     await connectDB();
-    const { name, email, password, permissions } = await req.json();
+    const { name, username, email, password, permissions } = await req.json();
 
-    if (!name || !email || !password)
-      return err("الاسم والبريد وكلمة المرور مطلوبة");
+    if (!name || !username || !password)
+      return err("الاسم واسم المستخدم وكلمة المرور مطلوبة");
+    if (!/^[a-zA-Z0-9_.-]{3,30}$/.test(username))
+      return err("اسم المستخدم: 3-30 حرفاً إنجليزياً أو أرقاماً بدون مسافات");
     if (password.length < 8)
       return err("كلمة المرور يجب أن تكون 8 أحرف على الأقل");
     if (!/(?=.*[a-zA-Z])(?=.*[0-9])/.test(password))
       return err("كلمة المرور يجب أن تحتوي على حروف وأرقام");
 
-    const exists = await SystemUser.findOne({ email });
-    if (exists) return err("البريد الإلكتروني مستخدم مسبقاً");
+    const exists = await SystemUser.findOne({
+      username: username.toLowerCase(),
+    });
+    if (exists) return err("اسم المستخدم مستخدم مسبقاً");
+    if (email) {
+      const emailExists = await SystemUser.findOne({ email });
+      if (emailExists) return err("البريد الإلكتروني مستخدم مسبقاً");
+    }
 
     const hashed = await bcrypt.hash(password, 10);
     const user = await SystemUser.create({
       name,
-      email,
+      username: username.toLowerCase(),
+      email: email || undefined,
       password: hashed,
       isSuperAdmin: false,
       permissions:
@@ -97,11 +106,24 @@ export async function PATCH(req: NextRequest) {
     }
 
     if (type === "info") {
-      const user = await SystemUser.findByIdAndUpdate(
-        id,
-        { name: data.name, email: data.email },
-        { new: true, select: "-password" },
-      );
+      const update: Record<string, any> = {
+        name: data.name,
+        email: data.email,
+      };
+      if (data.username) {
+        if (!/^[a-zA-Z0-9_.-]{3,30}$/.test(data.username))
+          return err("اسم المستخدم: 3-30 حرفاً إنجليزياً أو أرقاماً بدون مسافات");
+        const exists = await SystemUser.findOne({
+          username: data.username.toLowerCase(),
+          _id: { $ne: id },
+        });
+        if (exists) return err("اسم المستخدم مستخدم مسبقاً");
+        update.username = data.username.toLowerCase();
+      }
+      const user = await SystemUser.findByIdAndUpdate(id, update, {
+        new: true,
+        select: "-password",
+      });
       return ok(user);
     }
 

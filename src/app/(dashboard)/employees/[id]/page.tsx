@@ -9,6 +9,9 @@ import { EmployeeDrawer } from "@/components/employees/EmployeeDrawer";
 import { AbsentsDrawer } from "@/components/employees/AbsentsDrawer";
 import { SalariesDrawer } from "@/components/employees/SalariesDrawer";
 import { LoansDrawer } from "@/components/employees/LoansDrawer";
+import { BonusesDrawer } from "@/components/employees/BonusesDrawer";
+import { HrPointsDrawer } from "@/components/employees/HrPointsDrawer";
+import { formatSeniority } from "@/lib/utils";
 import {
   ArrowRight,
   Pencil,
@@ -23,6 +26,9 @@ import {
   Trash2,
   Download,
   User,
+  Award,
+  Star,
+  Clock,
 } from "lucide-react";
 
 export default function EmployeeProfilePage() {
@@ -41,6 +47,8 @@ export default function EmployeeProfilePage() {
   const [absentsDrawer, setAbsentsDrawer] = useState(false);
   const [salariesDrawer, setSalariesDrawer] = useState(false);
   const [loansDrawer, setLoansDrawer] = useState(false);
+  const [bonusesDrawer, setBonusesDrawer] = useState(false);
+  const [pointsDrawer, setPointsDrawer] = useState(false);
   const [confirmDelete, setConfirmDelete] = useState(false);
 
   const fetchEmployee = useCallback(async () => {
@@ -108,6 +116,15 @@ export default function EmployeeProfilePage() {
       const d = new Date(a.date);
       return d.getMonth() === now.getMonth() && d.getFullYear() === currentYear;
     }) ?? [];
+  const hireDate = employee.hireDate ?? employee.createdAt;
+  const totalHrPoints = (employee.hrPoints ?? []).reduce(
+    (acc: number, p: any) => acc + (p.points ?? 0),
+    0,
+  );
+  const totalBonusesSP = (employee.bonuses ?? []).reduce(
+    (acc: number, b: any) => acc + (b.amount?.SP ?? 0),
+    0,
+  );
 
   const cardStyle: React.CSSProperties = {
     background: "var(--surface)",
@@ -306,6 +323,10 @@ export default function EmployeeProfilePage() {
               {[
                 { icon: Briefcase, text: employee.role },
                 { icon: Building2, text: employee.department },
+                {
+                  icon: Clock,
+                  text: `في الشركة منذ ${formatSeniority(hireDate)}`,
+                },
                 ...(employee.phone
                   ? [{ icon: Phone, text: employee.phone }]
                   : []),
@@ -416,6 +437,26 @@ export default function EmployeeProfilePage() {
             action: () => setLoansDrawer(true),
             actionLabel: "عرض السلف",
             icon: CreditCard,
+          },
+          {
+            label: "المكافآت والتعويضات",
+            value: `${totalBonusesSP.toLocaleString("en")} ل.س`,
+            sub: `${employee.bonuses?.length ?? 0} سجل`,
+            color: "#8b5cf6",
+            bg: "rgba(139,92,246,0.08)",
+            action: () => setBonusesDrawer(true),
+            actionLabel: "عرض المكافآت",
+            icon: Award,
+          },
+          {
+            label: "نقاط التقييم",
+            value: totalHrPoints,
+            sub: `${employee.hrPoints?.length ?? 0} سجل`,
+            color: "#eab308",
+            bg: "rgba(234,179,8,0.08)",
+            action: () => setPointsDrawer(true),
+            actionLabel: "عرض النقاط",
+            icon: Star,
           },
         ].map(
           ({
@@ -718,6 +759,19 @@ export default function EmployeeProfilePage() {
         onClose={() => setLoansDrawer(false)}
         employee={employee}
         defaultExchange={settings.defaultExchangeRate}
+        onUpdate={fetchEmployee}
+      />
+      <BonusesDrawer
+        open={bonusesDrawer}
+        onClose={() => setBonusesDrawer(false)}
+        employee={employee}
+        defaultExchange={settings.defaultExchangeRate}
+        onUpdate={fetchEmployee}
+      />
+      <HrPointsDrawer
+        open={pointsDrawer}
+        onClose={() => setPointsDrawer(false)}
+        employee={employee}
         onUpdate={fetchEmployee}
       />
 
