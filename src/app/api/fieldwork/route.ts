@@ -5,7 +5,7 @@ import Employee from "@/lib/db/models/Employee";
 import FieldWorkLog from "@/lib/db/models/FieldWorkLog";
 
 export async function GET(req: NextRequest) {
-  const denied = await permissionGuard("fieldwork", "readonly");
+  const denied = await permissionGuard("fieldwork", "readonly", "view");
   if (denied) return denied;
 
   try {

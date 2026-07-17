@@ -59,7 +59,12 @@ export const authOptions: NextAuthOptions = {
             username: user.username,
             email: user.email,
             isSuperAdmin: user.isSuperAdmin,
-            permissions: user.permissions,
+            // Plain objects only — a Mongoose Map would serialize to {} in the JWT
+            permissions: (user.permissions ?? []).map((p: any) => ({
+              section: p.section,
+              permission: p.permission,
+              actions: p.actions ? Object.fromEntries(p.actions) : undefined,
+            })),
             sessionId,
           };
         } catch (error) {

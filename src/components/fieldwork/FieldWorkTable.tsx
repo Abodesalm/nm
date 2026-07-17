@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { StatusBadge } from "@/components/shared/StatusBadge";
 
 interface RowData {
@@ -148,7 +149,9 @@ export function FieldWorkTable({ data, onChangeStatus, canEdit }: Props) {
                         {employee.fullName?.charAt(0) ?? "؟"}
                       </div>
                     )}
-                    <span
+                    <Link
+                      href={`/fieldwork/${employee._id}`}
+                      title="ملف الدوام"
                       style={{
                         fontFamily: "'Tajawal', sans-serif",
                         fontSize: 13.5,
@@ -157,10 +160,17 @@ export function FieldWorkTable({ data, onChangeStatus, canEdit }: Props) {
                         overflow: "hidden",
                         textOverflow: "ellipsis",
                         whiteSpace: "nowrap",
+                        textDecoration: "none",
                       }}
+                      onMouseEnter={(e) =>
+                        (e.currentTarget.style.color = "#f97316")
+                      }
+                      onMouseLeave={(e) =>
+                        (e.currentTarget.style.color = "var(--text)")
+                      }
                     >
                       {employee.fullName}
-                    </span>
+                    </Link>
                   </div>
                 </td>
 

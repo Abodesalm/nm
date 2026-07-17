@@ -9,6 +9,15 @@ export interface ISystemUser extends Document {
   permissions: {
     section: string;
     permission: "none" | "readonly" | "full";
+    /** Fine-grained overrides: action name → allowed. When set for an action,
+     *  it beats the section level; missing actions fall back to the level. */
+    actions?: Map<string, boolean>;
+  }[];
+  /** Per-user sidebar customization: order + label overrides, keyed by href */
+  sidebarPrefs: {
+    key: string;
+    order: number;
+    label?: string;
   }[];
   sessions: {
     _id: mongoose.Types.ObjectId;
@@ -42,6 +51,14 @@ const SystemUserSchema = new Schema<ISystemUser>(
           enum: ["none", "readonly", "full"],
           default: "none",
         },
+        actions: { type: Map, of: Boolean, default: undefined },
+      },
+    ],
+    sidebarPrefs: [
+      {
+        key: { type: String, required: true },
+        order: { type: Number, default: 0 },
+        label: String,
       },
     ],
     sessions: [

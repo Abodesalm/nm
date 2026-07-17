@@ -17,7 +17,7 @@ export async function GET(
   req: NextRequest,
   context: { params: Promise<{ id: string }> },
 ) {
-  const denied = await permissionGuard("finance", "readonly");
+  const denied = await permissionGuard("finance", "readonly", "view");
   if (denied) return denied;
   try {
     const { id } = await context.params;
@@ -35,7 +35,7 @@ export async function PATCH(
   req: NextRequest,
   context: { params: Promise<{ id: string }> },
 ) {
-  const denied = await permissionGuard("finance", "full");
+  const denied = await permissionGuard("finance", "full", "loans_manage");
   if (denied) return denied;
 
   try {
@@ -130,7 +130,7 @@ export async function DELETE(
   req: NextRequest,
   context: { params: Promise<{ id: string }> },
 ) {
-  const denied = await permissionGuard("finance", "full");
+  const denied = await permissionGuard("finance", "full", "loans_manage");
   if (denied) return denied;
 
   try {

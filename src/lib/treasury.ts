@@ -50,6 +50,7 @@ export async function addTreasuryEntry(entry: {
   amount: Money;
   description: string;
   notes?: string | null;
+  category?: string | null;
   relatedInvoice?: string | null;
   relatedLoan?: string | null;
   date?: Date | string | null;
@@ -61,6 +62,7 @@ export async function addTreasuryEntry(entry: {
     amount: entry.amount,
     description: entry.description,
     notes: entry.notes ?? undefined,
+    category: entry.category ?? null,
     relatedInvoice: entry.relatedInvoice ?? null,
     relatedLoan: entry.relatedLoan ?? null,
     date: entry.date ? new Date(entry.date) : new Date(),

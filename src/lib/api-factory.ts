@@ -49,6 +49,7 @@ export async function superAdminGuard() {
 export async function permissionGuard(
   section: string,
   required: "readonly" | "full",
+  action?: string,
 ) {
   const session = await getServerSession(authOptions);
   if (!session) return err("Unauthorized", 401);
@@ -57,7 +58,17 @@ export async function permissionGuard(
   if (user.isSuperAdmin) return null;
 
   const perm = user.permissions?.find((p: any) => p.section === section);
+  // "none" hides the whole section — fine-grained overrides can't rescue it
   if (!perm || perm.permission === "none") return err("Forbidden", 403);
+
+  // Fine-grained override: when the action is present in the map it beats
+  // the section level; missing actions fall back to the level below.
+  if (action && perm.actions && perm.actions[action] !== undefined) {
+    return perm.actions[action]
+      ? null
+      : err("Forbidden — action not allowed", 403);
+  }
+
   if (required === "full" && perm.permission !== "full")
     return err("Forbidden — read only access", 403);
 

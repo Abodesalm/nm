@@ -10,7 +10,7 @@ import { authOptions } from "@/lib/auth";
 
 // GET — loans list + open totals per direction
 export async function GET(req: NextRequest) {
-  const denied = await permissionGuard("finance", "readonly");
+  const denied = await permissionGuard("finance", "readonly", "view");
   if (denied) return denied;
 
   try {
@@ -63,7 +63,7 @@ export async function GET(req: NextRequest) {
 
 // POST — manual loan (cash borrowed by us / lent by us, or plain debt record)
 export async function POST(req: NextRequest) {
-  const denied = await permissionGuard("finance", "full");
+  const denied = await permissionGuard("finance", "full", "loans_add");
   if (denied) return denied;
 
   try {

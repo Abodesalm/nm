@@ -4,7 +4,7 @@ import Employee from "@/lib/db/models/Employee";
 import { permissionGuard, ok, err } from "@/lib/api-factory";
 
 export async function GET(req: NextRequest) {
-  const denied = await permissionGuard("employees", "readonly");
+  const denied = await permissionGuard("employees", "readonly", "view");
   if (denied) return denied;
 
   try {
@@ -51,7 +51,7 @@ export async function GET(req: NextRequest) {
 }
 
 export async function POST(req: NextRequest) {
-  const denied = await permissionGuard("employees", "full");
+  const denied = await permissionGuard("employees", "full", "add");
   if (denied) return denied;
 
   try {

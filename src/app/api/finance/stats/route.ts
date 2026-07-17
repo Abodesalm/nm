@@ -47,7 +47,7 @@ function sumByType(docs: any[]) {
 }
 
 export async function GET(req: NextRequest) {
-  const denied = await permissionGuard("finance", "readonly");
+  const denied = await permissionGuard("finance", "readonly", "view");
   if (denied) return denied;
 
   try {

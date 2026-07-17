@@ -9,11 +9,14 @@ Next.js 16 (App Router, RSC) + React 19 + TypeScript. MongoDB via Mongoose 9 (`m
 
 Sections enabled in the sidebar: employees, storage, history, finance, fieldwork, settings. (points/customers/problems/documents exist in code but are disabled.)
 
-## Auth (username-based)
+## Auth (username-based) + granular permissions
 
-- `SystemUser { name, username (unique sparse lowercase), email? (unique sparse), password, isSuperAdmin, permissions[], sessions[] }`.
+- `SystemUser { name, username (unique sparse lowercase), email? (unique sparse), password, isSuperAdmin, permissions[], sidebarPrefs[], sessions[] }`.
 - Login form takes **username**; `authorize()` matches `$or: [{username}, {email}]` for backward compatibility.
-- `permissionGuard(section, level)` guards every API route; super-admin bypass. Section list duplicated in `SystemUser.ts`, `seed.ts`, `api/settings/users/route.ts` — keep in sync.
+- **Permissions = per-section level + fine-grained overrides.** Each `permissions[]` entry: `{ section, permission: none|readonly|full, actions?: Map<string,bool> }`. `permissionGuard(section, level, action?)` (api-factory.ts): super-admin bypass → "none" hides the section entirely → an action present in the map overrides the level → otherwise the level decides. Action catalog + Arabic labels live in `src/lib/permissions.ts` (single source of truth for the users-settings UI chips). All routes pass action names (e.g. `salaries_add`, `treasury_delete`, `action_add`).
+- The JWT snapshots permissions (Map flattened to a plain object in `authorize()`) — changes apply at next login. Enforcement is server-side; UI buttons are not yet hidden per action.
+- Section list duplicated in `SystemUser.ts`, `seed.ts`, `api/settings/users/route.ts` — keep in sync (all three include `fieldwork` now).
+- **Per-user sidebar**: `sidebarPrefs[] {key: href, order, label?}` edited via the sidebar's "تخصيص القائمة" dialog, stored through self-service `/api/me/sidebar` (GET/PATCH, self only). The Sidebar fetches prefs on mount and applies order + label overrides.
 - Seed: super admin `admin` / `@dm1n_te1c0m`; backfills username and `syncIndexes()` on old DBs.
 
 ## Money model (SYP-primary)
@@ -25,7 +28,8 @@ Sections enabled in the sidebar: employees, storage, history, finance, fieldwork
 ## Treasury — the money box (core decision)
 
 - The company's real cash is modeled as ONE box whose balance is **derived, never stored**: `Σ deposits − Σ withdrawals` per currency over `TreasuryEntry` (`src/lib/treasury.ts → computeTreasuryBalance()`). Same philosophy as the MyMoney app.
-- `TreasuryEntry { type: deposit|withdraw, source: manual|invoice|loan, amount, description, notes, relatedInvoice?, relatedLoan?, date }`.
+- `TreasuryEntry { type: deposit|withdraw, source: manual|invoice|loan, amount, description, notes, category? (صندوق, Settings.funds _id), relatedInvoice?, relatedLoan?, date }`.
+- **Money categories (الصناديق):** `Settings.funds[] {name}` CRUD in settings ← المالية (`api/settings/finance`, `funds_manage` action). Manual entries may carry a `category`; deleting a fund un-categorizes its entries. `/finance/categories` page (`/api/finance/categories`) shows per-fund monthly (filterable) + lifetime deposit/withdraw/net sums and the month's records; "بدون صندوق" bucket collects uncategorized entries. Manual entries are the only deletable ones from the treasury drawer (visible red button); deletes are History-logged.
 - Automatic entries (with cascade delete via `deleteTreasuryEntriesByInvoice/ByLoan`):
   - Salary paid → withdraw of **amount + reward − deducted employee loans** (linked to the salary invoice).
   - Storage purchase → withdraw full cost; if bought on credit, only the paid-now part (linked to the loan instead).
@@ -51,16 +55,27 @@ Sections enabled in the sidebar: employees, storage, history, finance, fieldwork
 
 ## Employees section
 
-- `Employee` extras beyond basics: `salary` (MoneyField), `hireDate` (default now; old records fall back to `createdAt`), `absents[]`, `salaries[] {month, year, amount, reward}`, `loans[]` (سلف الموظفين — personal advances, distinct from business loans), `bonuses[] {type: reward|compensation, amount, reason, date}`, `hrPoints[] {points (±), reason, date}`.
+- `Employee` extras beyond basics: `salary` (MoneyField), `hireDate` (default now; old records fall back to `createdAt`), `absents[] {date, isAbsent, excused, overtime?, reason, note}`, `salaries[] {month, year, amount, reward}`, `loans[]` (سلف الموظفين — personal advances, distinct from business loans), `bonuses[] {type: reward|compensation, amount, reason, date}`, `hrPoints[] {points (±), pricePerPoint? (MoneyField), reason, date}`.
 - Monthly salary: one per month/year; drawer can deduct unpaid employee loans (`deductLoans` → server computes deduction for the treasury withdrawal and client marks the loans paid).
-- Bonuses create a `bonus` cost invoice + treasury withdraw + history; HR points are non-financial (history only).
+- Bonuses create a `bonus` cost invoice + treasury withdraw + history; HR points are non-financial (history only) but each add operation can lock a **price per point** — HrPointsDrawer groups entries by month and shows Σpoints and Σ(points × price) per month + all-time (SP primary), so "how much the employee deserves" is visible. Purely informational; paying stays a salary/bonus matter.
 - Seniority: `formatSeniority(hireDate)` — profile header chip + sortable table column (`seniority` → `hireDate`).
 - Profile page quick stats: absents, salaries, employee loans, bonuses, HR points — each opens its drawer.
 
 ## Storage section
 
-- `StorageItem.actions[]` (stock_in/out/consume/borrow/return) with optional `cost`; quantities/status recomputed per mutation; point-equipment sync; History log per action.
-- ActionDrawer: cost toggle → optional "شراء بالدين" (supplier + paid-now); server route validates loan fields BEFORE mutating.
+- `StorageItem.actions[]` — 7 types: `stock_in`, `stock_out`, `consume`, `usage` (استخدام, consume-like), `borrow`, `custody` (أمانة — ours, out for unknown duration; shares the borrowed counter with borrow and is settled by `return`), `return`. Optional `cost`; quantities/status recomputed per mutation (`recalcQuantities`: only `stock_in`/`return` increase); point-equipment sync; History log per action.
+- **Increasing actions always target the warehouse**: الوجهة renders as a locked "المستودع" input and `goal_model/goal_id` are forced null client- and server-side.
+- ActionDrawer: cost toggle → optional "شراء بالدين" (supplier + paid-now); server route validates loan fields BEFORE mutating. **Read-only mode** via `viewAction` prop — clicking an action card on the item page opens the same form filled and disabled (the action "mini profile"). Notes render as a highlighted block on each action card.
+- Every storage mutation is History-logged: item add/edit/hide/delete, action add, and action delete (an `action_deleted` entry — the original action log is cascade-removed but the deletion itself stays auditable). Item delete cascades every action's Invoice/Loan/TreasuryEntry.
+
+## Fieldwork attendance (ملف الدوام)
+
+- **Attendance is DERIVED, never stored** (same philosophy as the treasury): `/api/fieldwork/attendance/[id]?month&year` merges, per day since `hireDate`:
+  1. A manual `absents[]` record for that date **always wins** (`isAbsent:false` = manually present; `overtime` flag manual).
+  2. Otherwise the day's `FieldWorkLog`: missing or `not_arrived` → auto absent; any other status → present. Hours = `arrivedAt` → last `finished` statusHistory timestamp; hours > `Settings.standardWorkHours` → auto overtime.
+  3. `Settings.weekendDays` (JS getDay numbers, default Friday) → عطلة, skipped by auto absence.
+- `/fieldwork/[id]` — per-employee profile: month stat cards + all-time stats (worked/absents/overtime/hours), color-coded calendar, click-a-day override dialog writing through `/api/employees/[id]/absents` (delete override → back to auto). Employee names on the fieldwork board link here.
+- Standard hours + weekend days configured in settings ← عام.
 
 ## Conventions / meta
 
@@ -73,3 +88,6 @@ Sections enabled in the sidebar: employees, storage, history, finance, fieldwork
 - Run `npm run seed` on existing deployments (username backfill + index sync for the now-sparse email index).
 - Customers/subscriptions: wire earn invoices → treasury deposits when the section is enabled.
 - Points/problems/documents sections still disabled in the sidebar.
+- Fine-grained permission `actions` are enforced server-side only — the UI does not yet hide buttons a user's overrides forbid.
+- Attendance overrides write through the employees `absents` API, so they require employees-section permission (not just fieldwork).
+- JWT snapshots permissions + at login — permission/sidebar edits apply at next login.

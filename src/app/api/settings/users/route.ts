@@ -16,6 +16,7 @@ const SECTIONS = [
   "finance",
   "documents",
   "settings",
+  "fieldwork",
 ];
 
 export async function GET() {
@@ -23,9 +24,15 @@ export async function GET() {
   if (denied) return denied;
   try {
     await connectDB();
-    const users = await SystemUser.find({}, { password: 0 }).sort({
-      createdAt: -1,
-    });
+    const users = await SystemUser.find({}, { password: 0 })
+      .sort({ createdAt: -1 })
+      .lean();
+    // Flatten the actions Map so the client gets a plain object
+    for (const u of users as any[]) {
+      for (const p of u.permissions ?? []) {
+        if (p.actions instanceof Map) p.actions = Object.fromEntries(p.actions);
+      }
+    }
     return ok(users);
   } catch (e: any) {
     return err(e.message, 500);

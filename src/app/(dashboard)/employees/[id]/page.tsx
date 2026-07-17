@@ -121,6 +121,16 @@ export default function EmployeeProfilePage() {
     (acc: number, p: any) => acc + (p.points ?? 0),
     0,
   );
+  // Current-month points value = Σ points × pricePerPoint (SP)
+  const monthHrPointsValueSP = (employee.hrPoints ?? []).reduce(
+    (acc: number, p: any) => {
+      const d = new Date(p.date);
+      if (d.getMonth() !== now.getMonth() || d.getFullYear() !== currentYear)
+        return acc;
+      return acc + (p.points ?? 0) * (p.pricePerPoint?.SP ?? 0);
+    },
+    0,
+  );
   const totalBonusesSP = (employee.bonuses ?? []).reduce(
     (acc: number, b: any) => acc + (b.amount?.SP ?? 0),
     0,
@@ -451,7 +461,7 @@ export default function EmployeeProfilePage() {
           {
             label: "نقاط التقييم",
             value: totalHrPoints,
-            sub: `${employee.hrPoints?.length ?? 0} سجل`,
+            sub: `قيمة هذا الشهر: ${(+monthHrPointsValueSP.toFixed(1)).toLocaleString("en")} ل.س — ${employee.hrPoints?.length ?? 0} سجل`,
             color: "#eab308",
             bg: "rgba(234,179,8,0.08)",
             action: () => setPointsDrawer(true),

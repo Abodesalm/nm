@@ -8,7 +8,9 @@ export default function GeneralSettingsPage() {
     systemName: "",
     defaultExchangeRate: "",
     autoSuspendDay: "",
+    standardWorkHours: "",
   });
+  const [weekendDays, setWeekendDays] = useState<number[]>([5]);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
@@ -22,7 +24,9 @@ export default function GeneralSettingsPage() {
           systemName: data.systemName ?? "NM System",
           defaultExchangeRate: String(data.defaultExchangeRate ?? 15000),
           autoSuspendDay: String(data.autoSuspendDay ?? 7),
+          standardWorkHours: String(data.standardWorkHours ?? 8),
         });
+        setWeekendDays(data.weekendDays ?? [5]);
         setLoading(false);
       });
   }, []);
@@ -36,6 +40,8 @@ export default function GeneralSettingsPage() {
         systemName: form.systemName,
         defaultExchangeRate: Number(form.defaultExchangeRate),
         autoSuspendDay: Number(form.autoSuspendDay),
+        standardWorkHours: Number(form.standardWorkHours) || 8,
+        weekendDays,
       }),
     });
     setSaving(false);
@@ -167,6 +173,80 @@ export default function GeneralSettingsPage() {
           />
           <p style={{ fontSize: 12, color: "var(--text-muted)" }}>
             سيتم إيقاف الزبائن الذين لم يدفعوا اشتراكهم في هذا اليوم من كل شهر
+          </p>
+        </div>
+
+        {/* Standard work hours */}
+        <div style={{ display: "flex", flexDirection: "column", gap: 7 }}>
+          <label
+            className="font-title"
+            style={{ fontSize: 13, fontWeight: 600, color: "var(--text)" }}
+          >
+            ساعات الدوام القياسية
+          </label>
+          <input
+            type="number"
+            min={1}
+            max={24}
+            value={form.standardWorkHours}
+            onChange={(e) =>
+              setForm({ ...form, standardWorkHours: e.target.value })
+            }
+            style={{ ...inputStyle, maxWidth: 140 }}
+            onFocus={(e) => (e.target.style.borderColor = "#f97316")}
+            onBlur={(e) => (e.target.style.borderColor = "var(--border)")}
+          />
+          <p style={{ fontSize: 12, color: "var(--text-muted)" }}>
+            اليوم الذي يعمل فيه الموظف أكثر من هذه الساعات يُعتبر دواماً إضافياً
+            في ملف الدوام
+          </p>
+        </div>
+
+        {/* Weekend days */}
+        <div style={{ display: "flex", flexDirection: "column", gap: 7 }}>
+          <label
+            className="font-title"
+            style={{ fontSize: 13, fontWeight: 600, color: "var(--text)" }}
+          >
+            أيام العطلة الأسبوعية
+          </label>
+          <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
+            {["الأحد", "الاثنين", "الثلاثاء", "الأربعاء", "الخميس", "الجمعة", "السبت"].map(
+              (day, i) => {
+                const active = weekendDays.includes(i);
+                return (
+                  <button
+                    key={i}
+                    onClick={() =>
+                      setWeekendDays(
+                        active
+                          ? weekendDays.filter((d) => d !== i)
+                          : [...weekendDays, i],
+                      )
+                    }
+                    style={{
+                      height: 34,
+                      padding: "0 14px",
+                      borderRadius: 8,
+                      cursor: "pointer",
+                      border: `2px solid ${active ? "#f97316" : "var(--border)"}`,
+                      background: active
+                        ? "rgba(249,115,22,0.1)"
+                        : "transparent",
+                      color: active ? "#f97316" : "var(--text-muted)",
+                      fontSize: 13,
+                      fontFamily: "'Tajawal', sans-serif",
+                      fontWeight: active ? 600 : 400,
+                    }}
+                  >
+                    {day}
+                  </button>
+                );
+              },
+            )}
+          </div>
+          <p style={{ fontSize: 12, color: "var(--text-muted)" }}>
+            لا يُسجل الكشف التلقائي غياباً في أيام العطلة
           </p>
         </div>
 

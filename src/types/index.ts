@@ -62,6 +62,12 @@ export interface SystemUser {
   permissions: {
     section: string;
     permission: "none" | "readonly" | "full";
+    actions?: Record<string, boolean>;
+  }[];
+  sidebarPrefs?: {
+    key: string;
+    order: number;
+    label?: string;
   }[];
   lastLogin: Date;
   createdAt: Date;
@@ -111,8 +117,19 @@ export interface Employee {
   hrPoints: {
     _id: string;
     points: number;
+    pricePerPoint?: MoneyField | null;
     reason?: string;
     date: Date;
+    createdAt: Date;
+  }[];
+  absents: {
+    _id: string;
+    date: Date;
+    isAbsent: boolean;
+    excused: boolean;
+    overtime?: boolean;
+    reason?: string;
+    note?: string;
     createdAt: Date;
   }[];
   createdAt: Date;
@@ -127,6 +144,7 @@ export interface TreasuryEntry {
   amount: MoneyField;
   description: string;
   notes?: string;
+  category?: string | null;
   relatedInvoice?: string | null;
   relatedLoan?: string | null;
   date: Date;
@@ -153,18 +171,37 @@ export interface Loan {
 }
 
 // Storage Item
+export interface StorageAction {
+  _id: string;
+  type:
+    | "stock_in"
+    | "stock_out"
+    | "consume"
+    | "usage"
+    | "borrow"
+    | "custody"
+    | "return";
+  quantity: number;
+  employee?: string | null;
+  goal_model?: "customers" | "points" | "employees" | null;
+  goal_id?: string | null;
+  notes?: string;
+  cost?: MoneyField | null;
+  date: Date;
+}
+
 export interface StorageItem {
   _id: string;
   name: string;
   category: string;
   unit: string;
   minQuantity: number;
-  cost: MoneyField;
   notes?: string;
   isHidden: boolean;
   status: "in-stock" | "low-stock" | "out-of-stock";
   currentQuantity: number;
   borrowedQuantity: number;
+  actions: StorageAction[];
   createdAt: Date;
   updatedAt: Date;
 }

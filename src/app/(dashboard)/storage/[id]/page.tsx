@@ -20,6 +20,7 @@ import {
   RotateCcw,
   Minus,
   FileDown,
+  StickyNote,
 } from "lucide-react";
 import { downloadXLSX } from "@/lib/exportXLSX";
 
@@ -30,8 +31,16 @@ const ACTION_LABELS: Record<
   stock_in: { label: "إدخال مخزون", color: "#22c55e", icon: TrendingUp },
   stock_out: { label: "إخراج مخزون", color: "#ef4444", icon: TrendingDown },
   consume: { label: "استهلاك", color: "#f97316", icon: Minus },
+  usage: { label: "استخدام", color: "#eab308", icon: Minus },
   borrow: { label: "استعارة", color: "#3b82f6", icon: RefreshCw },
+  custody: { label: "أمانة", color: "#14b8a6", icon: RefreshCw },
   return: { label: "إرجاع", color: "#8b5cf6", icon: RotateCcw },
+};
+
+const GOAL_AR: Record<string, string> = {
+  employees: "موظف",
+  customers: "زبون",
+  points: "نقطة",
 };
 
 export default function StorageItemPage() {
@@ -47,6 +56,7 @@ export default function StorageItemPage() {
   const [confirmDeleteAction, setConfirmDeleteAction] = useState<string | null>(
     null,
   );
+  const [viewAction, setViewAction] = useState<any>(null);
 
   // Actions pagination + filter
   const [page, setPage] = useState(1);
@@ -559,6 +569,7 @@ export default function StorageItemPage() {
               return (
                 <div
                   key={action._id}
+                  onClick={() => setViewAction(action)}
                   style={{
                     display: "flex",
                     alignItems: "center",
@@ -567,7 +578,15 @@ export default function StorageItemPage() {
                     borderRadius: 9,
                     background: "var(--bg)",
                     border: "1px solid var(--border)",
+                    cursor: "pointer",
+                    transition: "border-color 0.15s",
                   }}
+                  onMouseEnter={(e) =>
+                    (e.currentTarget.style.borderColor = "#f97316")
+                  }
+                  onMouseLeave={(e) =>
+                    (e.currentTarget.style.borderColor = "var(--border)")
+                  }
                 >
                   <div
                     style={{
@@ -618,24 +637,36 @@ export default function StorageItemPage() {
                         </span>
                       )}
                     </div>
-                    <div style={{ display: "flex", gap: 10, marginTop: 8 }}>
+                    <div
+                      style={{
+                        display: "flex",
+                        gap: 10,
+                        marginTop: 8,
+                        flexWrap: "wrap",
+                        alignItems: "center",
+                      }}
+                    >
                       <span
                         style={{ fontSize: 12, color: "var(--text-muted)" }}
                       >
                         {new Date(action.date).toLocaleDateString("en-GB")}
                       </span>
-                      {action.notes && (
-                        <span
-                          style={{ fontSize: 12, color: "var(--text-muted)" }}
-                        >
-                          {action.notes}
-                        </span>
-                      )}
                       {action.goal_model && (
                         <span
                           style={{ fontSize: 12, color: "var(--text-muted)" }}
                         >
-                          {action.goal_model}
+                          الوجهة:{" "}
+                          {GOAL_AR[action.goal_model] ?? action.goal_model}
+                          {action.goal_id &&
+                          typeof action.goal_id === "object"
+                            ? ` — ${
+                                action.goal_id.fullName ??
+                                action.goal_id.name ??
+                                (action.goal_id.point_number != null
+                                  ? `#${action.goal_id.point_number}`
+                                  : "")
+                              }`
+                            : ""}
                         </span>
                       )}
                       {action.cost?.USD ? (
@@ -650,9 +681,45 @@ export default function StorageItemPage() {
                         </span>
                       ) : null}
                     </div>
+                    {action.notes && (
+                      <div
+                        style={{
+                          display: "flex",
+                          alignItems: "flex-start",
+                          gap: 6,
+                          marginTop: 8,
+                          padding: "6px 10px",
+                          borderRadius: 7,
+                          background: "rgba(249,115,22,0.06)",
+                          border: "1px solid rgba(249,115,22,0.15)",
+                        }}
+                      >
+                        <StickyNote
+                          size={13}
+                          style={{
+                            color: "#f97316",
+                            flexShrink: 0,
+                            marginTop: 2,
+                          }}
+                        />
+                        <span
+                          style={{
+                            fontSize: 12.5,
+                            color: "var(--text)",
+                            fontFamily: "'Tajawal', sans-serif",
+                            whiteSpace: "pre-wrap",
+                          }}
+                        >
+                          {action.notes}
+                        </span>
+                      </div>
+                    )}
                   </div>
                   <button
-                    onClick={() => setConfirmDeleteAction(action._id)}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setConfirmDeleteAction(action._id);
+                    }}
                     style={{
                       width: 28,
                       height: 28,
@@ -716,6 +783,15 @@ export default function StorageItemPage() {
         onSaved={fetchItem}
         item={item}
         defaultExchange={defaultExchange}
+      />
+      {/* Read-only mini profile of a clicked action */}
+      <ActionDrawer
+        open={!!viewAction}
+        onClose={() => setViewAction(null)}
+        onSaved={() => {}}
+        item={item}
+        defaultExchange={defaultExchange}
+        viewAction={viewAction}
       />
 
       {confirmDelete && (

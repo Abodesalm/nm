@@ -7,7 +7,7 @@ export async function GET(
   req: NextRequest,
   context: { params: Promise<{ id: string }> },
 ) {
-  const denied = await permissionGuard("employees", "readonly");
+  const denied = await permissionGuard("employees", "readonly", "view");
   if (denied) return denied;
 
   try {
@@ -25,7 +25,7 @@ export async function PATCH(
   req: NextRequest,
   context: { params: Promise<{ id: string }> },
 ) {
-  const denied = await permissionGuard("employees", "full");
+  const denied = await permissionGuard("employees", "full", "edit");
   if (denied) return denied;
 
   try {
@@ -47,7 +47,7 @@ export async function DELETE(
   req: NextRequest,
   context: { params: Promise<{ id: string }> },
 ) {
-  const denied = await permissionGuard("employees", "full");
+  const denied = await permissionGuard("employees", "full", "delete");
   if (denied) return denied;
 
   try {

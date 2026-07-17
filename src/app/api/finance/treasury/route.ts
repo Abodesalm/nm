@@ -1,12 +1,15 @@
 import { NextRequest } from "next/server";
 import { connectDB } from "@/lib/db/mongoose";
 import TreasuryEntry from "@/lib/db/models/TreasuryEntry";
+import History from "@/lib/db/models/History";
 import { permissionGuard, ok, err } from "@/lib/api-factory";
 import { computeTreasuryBalance, addTreasuryEntry } from "@/lib/treasury";
+import { getServerSession } from "next-auth";
+import { authOptions } from "@/lib/auth";
 
 // GET — balance + paginated movement list
 export async function GET(req: NextRequest) {
-  const denied = await permissionGuard("finance", "readonly");
+  const denied = await permissionGuard("finance", "readonly", "view");
   if (denied) return denied;
 
   try {
@@ -33,7 +36,7 @@ export async function GET(req: NextRequest) {
 
 // POST — manual deposit/withdraw (real-life money change mirrored into the box)
 export async function POST(req: NextRequest) {
-  const denied = await permissionGuard("finance", "full");
+  const denied = await permissionGuard("finance", "full", "treasury_add");
   if (denied) return denied;
 
   try {
@@ -53,7 +56,18 @@ export async function POST(req: NextRequest) {
         body.description ||
         (body.type === "deposit" ? "إيداع يدوي" : "سحب يدوي"),
       notes: body.notes ?? null,
+      category: body.category ?? null,
       date: body.date ?? null,
+    });
+
+    const session = await getServerSession(authOptions);
+    await History.create({
+      section: "finance",
+      type: body.type === "deposit" ? "treasury_deposit" : "treasury_withdraw",
+      performedBy: (session?.user as any)?.id,
+      relatedId: entry?._id ?? null,
+      notes: `${body.type === "deposit" ? "إيداع" : "سحب"} يدوي في الخزينة: ${body.amount.SP?.toLocaleString("en") ?? 0} ل.س${body.description ? ` — ${body.description}` : ""}`,
+      date: new Date(),
     });
 
     return ok(entry, 201);
@@ -64,7 +78,7 @@ export async function POST(req: NextRequest) {
 
 // DELETE — remove a manual entry (invoice/loan entries are cascade-managed)
 export async function DELETE(req: NextRequest) {
-  const denied = await permissionGuard("finance", "full");
+  const denied = await permissionGuard("finance", "full", "treasury_delete");
   if (denied) return denied;
 
   try {
@@ -77,6 +91,17 @@ export async function DELETE(req: NextRequest) {
       return err("لا يمكن حذف حركة مرتبطة بفاتورة أو دين — احذف المصدر نفسه");
 
     await TreasuryEntry.findByIdAndDelete(entryId);
+    await History.deleteOne({ relatedId: entryId });
+
+    const session = await getServerSession(authOptions);
+    await History.create({
+      section: "finance",
+      type: "treasury_entry_deleted",
+      performedBy: (session?.user as any)?.id,
+      notes: `حذف حركة خزينة (${entry.type === "deposit" ? "إيداع" : "سحب"}): ${entry.amount?.SP?.toLocaleString("en") ?? 0} ل.س — ${entry.description}`,
+      date: new Date(),
+    });
+
     return ok({ deleted: true });
   } catch (e: any) {
     return err(e.message, 500);

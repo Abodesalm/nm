@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { StatusBadge } from "@/components/shared/StatusBadge";
 import { Clock, FileText } from "lucide-react";
 
@@ -129,8 +130,11 @@ export function FieldWorkCards({ data, onChangeStatus, canEdit }: Props) {
               >
                 <Avatar employee={employee} />
                 <div style={{ flex: 1, minWidth: 0 }}>
-                  <div
+                  <Link
+                    href={`/fieldwork/${employee._id}`}
+                    title="ملف الدوام"
                     style={{
+                      display: "block",
                       fontWeight: 600,
                       fontSize: 14.5,
                       color: "var(--text)",
@@ -138,10 +142,17 @@ export function FieldWorkCards({ data, onChangeStatus, canEdit }: Props) {
                       overflow: "hidden",
                       textOverflow: "ellipsis",
                       whiteSpace: "nowrap",
+                      textDecoration: "none",
                     }}
+                    onMouseEnter={(e) =>
+                      (e.currentTarget.style.color = "#f97316")
+                    }
+                    onMouseLeave={(e) =>
+                      (e.currentTarget.style.color = "var(--text)")
+                    }
                   >
                     {employee.fullName}
-                  </div>
+                  </Link>
                   <div
                     style={{
                       fontSize: 12,

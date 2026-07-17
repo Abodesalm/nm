@@ -16,14 +16,28 @@ import { isLoanSettled } from "@/lib/loans";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 
+// Increasing types flow INTO the warehouse; everything else flows out.
+// "usage" behaves like consume; "custody" (أمانة) behaves like borrow:
+// still ours, tracked in the borrowed counter, returnable via "return".
+const INCREASING_TYPES = ["stock_in", "return"];
+
+const TYPE_AR: Record<string, string> = {
+  stock_in: "إدخال مخزون",
+  stock_out: "إخراج مخزون",
+  consume: "استهلاك",
+  usage: "استخدام",
+  borrow: "استعارة",
+  custody: "أمانة",
+  return: "إرجاع",
+};
+
 function recalcQuantities(actions: any[]) {
   let current = 0;
   let borrowed = 0;
   for (const a of actions) {
-    if (a.type === "stock_in" || a.type === "return") current += a.quantity;
-    if (a.type === "stock_out" || a.type === "consume" || a.type === "borrow")
-      current -= a.quantity;
-    if (a.type === "borrow") borrowed += a.quantity;
+    if (INCREASING_TYPES.includes(a.type)) current += a.quantity;
+    else current -= a.quantity;
+    if (a.type === "borrow" || a.type === "custody") borrowed += a.quantity;
     if (a.type === "return") borrowed -= a.quantity;
   }
   return { current: Math.max(0, current), borrowed: Math.max(0, borrowed) };
@@ -64,7 +78,7 @@ export async function POST(
   req: NextRequest,
   context: { params: Promise<{ id: string }> },
 ) {
-  const denied = await permissionGuard("storage", "full");
+  const denied = await permissionGuard("storage", "full", "action_add");
   if (denied) return denied;
   try {
     const { id } = await context.params;
@@ -79,6 +93,12 @@ export async function POST(
       if (!body.cost || (!body.cost.USD && !body.cost.SP))
         return err("الشراء بالدين يتطلب تكلفة");
       if (!body.loan.party?.trim()) return err("اسم الجهة الدائنة مطلوب");
+    }
+
+    // Increasing actions always land in the warehouse — no external destination
+    if (INCREASING_TYPES.includes(body.type)) {
+      body.goal_model = null;
+      body.goal_id = null;
     }
 
     item.actions.push(body);
@@ -184,12 +204,13 @@ export async function DELETE(
   req: NextRequest,
   context: { params: Promise<{ id: string }> },
 ) {
-  const denied = await permissionGuard("storage", "full");
+  const denied = await permissionGuard("storage", "full", "action_delete");
   if (denied) return denied;
   try {
     const { id } = await context.params;
     await connectDB();
     const { actionId } = await req.json();
+    const session = await getServerSession(authOptions);
 
     const item = await StorageItem.findById(id);
     if (!item) return err("العنصر غير موجود", 404);
@@ -213,6 +234,19 @@ export async function DELETE(
 
     // Delete history log, invoice, loan and their box movements
     await History.deleteOne({ relatedId: actionId });
+
+    // Audit trail: record that the action itself was deleted
+    if (action) {
+      await History.create({
+        section: "storage",
+        type: "action_deleted",
+        performedBy: (session?.user as any)?.id,
+        item: id,
+        quantity: action.quantity,
+        notes: `حذف حركة (${TYPE_AR[action.type] ?? action.type}) بكمية ${action.quantity} من ${item.name}`,
+        date: new Date(),
+      });
+    }
 
     const invoice = await Invoice.findOne({ relatedId: actionId });
     if (invoice) {

@@ -10,10 +10,13 @@ import {
   ChevronUp,
 } from "lucide-react";
 import { useSession } from "next-auth/react";
+import { SECTION_ACTIONS } from "@/lib/permissions";
 
 interface Permission {
   section: string;
   permission: "none" | "readonly" | "full";
+  /** Fine-grained overrides: action → allowed. Missing = follows the level. */
+  actions?: Record<string, boolean>;
 }
 interface User {
   _id: string;
@@ -408,6 +411,7 @@ export default function UsersSettingsPage() {
     })),
   });
   const [permsForm, setPermsForm] = useState<Permission[]>([]);
+  const [expandedActions, setExpandedActions] = useState<string | null>(null);
   const [newPassword, setNewPassword] = useState("");
   const [saving, setSaving] = useState(false);
   const [formError, setFormError] = useState("");
@@ -1103,43 +1107,166 @@ export default function UsersSettingsPage() {
         >
           <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
             {SECTIONS.map((s) => {
-              const perm =
-                permsForm.find((p) => p.section === s.key)?.permission ??
-                "none";
+              const entry = permsForm.find((p) => p.section === s.key);
+              const perm = entry?.permission ?? "none";
+              const sectionActions = SECTION_ACTIONS[s.key] ?? [];
+              const canCustomize = perm !== "none" && sectionActions.length > 0;
+              const customizedCount = Object.keys(entry?.actions ?? {}).length;
+              const isExpanded = expandedActions === s.key;
               return (
                 <div
                   key={s.key}
                   style={{
-                    display: "flex",
-                    alignItems: "center",
-                    justifyContent: "space-between",
-                    padding: "9px 12px",
                     borderRadius: 8,
                     background: "var(--bg)",
                     border: "1px solid var(--border)",
+                    overflow: "hidden",
                   }}
                 >
-                  <span
+                  <div
                     style={{
-                      fontSize: 13,
-                      color: "var(--text)",
-                      fontFamily: "'Tajawal', sans-serif",
+                      display: "flex",
+                      alignItems: "center",
+                      justifyContent: "space-between",
+                      padding: "9px 12px",
+                      gap: 8,
                     }}
                   >
-                    {s.label}
-                  </span>
-                  <PermissionSelect
-                    value={perm}
-                    onChange={(v) =>
-                      setPermsForm(
-                        permsForm.map((p) =>
-                          p.section === s.key
-                            ? { ...p, permission: v as any }
-                            : p,
-                        ),
-                      )
-                    }
-                  />
+                    <span
+                      style={{
+                        fontSize: 13,
+                        color: "var(--text)",
+                        fontFamily: "'Tajawal', sans-serif",
+                        flex: 1,
+                      }}
+                    >
+                      {s.label}
+                      {customizedCount > 0 && (
+                        <span
+                          style={{
+                            fontSize: 10.5,
+                            color: "#f97316",
+                            marginRight: 6,
+                          }}
+                        >
+                          ({customizedCount} تخصيص)
+                        </span>
+                      )}
+                    </span>
+                    {canCustomize && (
+                      <button
+                        onClick={() =>
+                          setExpandedActions(isExpanded ? null : s.key)
+                        }
+                        style={{
+                          height: 28,
+                          padding: "0 8px",
+                          borderRadius: 6,
+                          border: "1px solid var(--border)",
+                          background: isExpanded
+                            ? "rgba(249,115,22,0.08)"
+                            : "transparent",
+                          color: isExpanded ? "#f97316" : "var(--text-muted)",
+                          fontSize: 11.5,
+                          fontFamily: "'Tajawal', sans-serif",
+                          cursor: "pointer",
+                        }}
+                      >
+                        تخصيص الإجراءات
+                      </button>
+                    )}
+                    <PermissionSelect
+                      value={perm}
+                      onChange={(v) =>
+                        setPermsForm(
+                          permsForm.map((p) =>
+                            p.section === s.key
+                              ? { ...p, permission: v as any }
+                              : p,
+                          ),
+                        )
+                      }
+                    />
+                  </div>
+
+                  {/* Fine-grained actions: default follows the level; each can
+                      be forced allowed/denied for this user */}
+                  {canCustomize && isExpanded && (
+                    <div
+                      style={{
+                        borderTop: "1px solid var(--border)",
+                        padding: "10px 12px",
+                        display: "flex",
+                        flexWrap: "wrap",
+                        gap: 6,
+                      }}
+                    >
+                      {sectionActions.map((a) => {
+                        const state = entry?.actions?.[a.key]; // undefined | true | false
+                        const cycle = () => {
+                          setPermsForm(
+                            permsForm.map((p) => {
+                              if (p.section !== s.key) return p;
+                              const actions = { ...(p.actions ?? {}) };
+                              if (state === undefined) actions[a.key] = true;
+                              else if (state === true) actions[a.key] = false;
+                              else delete actions[a.key];
+                              return { ...p, actions };
+                            }),
+                          );
+                        };
+                        const color =
+                          state === true
+                            ? "#22c55e"
+                            : state === false
+                              ? "#ef4444"
+                              : "var(--text-muted)";
+                        return (
+                          <button
+                            key={a.key}
+                            onClick={cycle}
+                            title={
+                              state === undefined
+                                ? "حسب مستوى القسم — اضغط للسماح"
+                                : state
+                                  ? "مسموح — اضغط للمنع"
+                                  : "ممنوع — اضغط للعودة للافتراضي"
+                            }
+                            style={{
+                              height: 28,
+                              padding: "0 10px",
+                              borderRadius: 99,
+                              border: `1px solid ${state === undefined ? "var(--border)" : color}`,
+                              background:
+                                state === undefined
+                                  ? "transparent"
+                                  : `${color}14`,
+                              color,
+                              fontSize: 11.5,
+                              fontFamily: "'Tajawal', sans-serif",
+                              fontWeight: state === undefined ? 400 : 600,
+                              cursor: "pointer",
+                            }}
+                          >
+                            {state === true ? "✓ " : state === false ? "✗ " : ""}
+                            {a.label}
+                          </button>
+                        );
+                      })}
+                      <p
+                        style={{
+                          width: "100%",
+                          fontSize: 10.5,
+                          color: "var(--text-muted)",
+                          fontFamily: "'Tajawal', sans-serif",
+                          marginTop: 2,
+                        }}
+                      >
+                        رمادي = حسب مستوى القسم، أخضر = مسموح دائماً، أحمر =
+                        ممنوع دائماً
+                      </p>
+                    </div>
+                  )}
                 </div>
               );
             })}

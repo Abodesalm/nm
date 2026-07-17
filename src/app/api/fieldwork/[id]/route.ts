@@ -9,7 +9,7 @@ export async function PATCH(
   req: NextRequest,
   context: { params: Promise<{ id: string }> },
 ) {
-  const denied = await permissionGuard("fieldwork", "full");
+  const denied = await permissionGuard("fieldwork", "full", "status_change");
   if (denied) return denied;
 
   try {

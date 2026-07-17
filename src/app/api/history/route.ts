@@ -10,7 +10,7 @@ import "@/lib/db/models/Customer";
 import { permissionGuard, ok, err } from "@/lib/api-factory";
 
 export async function GET(req: NextRequest) {
-  const denied = await permissionGuard("history", "readonly");
+  const denied = await permissionGuard("history", "readonly", "view");
   if (denied) return denied;
   try {
     await connectDB();
@@ -52,7 +52,7 @@ export async function GET(req: NextRequest) {
 }
 
 export async function DELETE(req: NextRequest) {
-  const denied = await permissionGuard("history", "full");
+  const denied = await permissionGuard("history", "full", "delete");
   if (denied) return denied;
   try {
     await connectDB();

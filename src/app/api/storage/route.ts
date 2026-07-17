@@ -1,10 +1,13 @@
 import { NextRequest } from "next/server";
 import { connectDB } from "@/lib/db/mongoose";
 import StorageItem from "@/lib/db/models/StorageItem";
+import History from "@/lib/db/models/History";
 import { permissionGuard, ok, err } from "@/lib/api-factory";
+import { getServerSession } from "next-auth";
+import { authOptions } from "@/lib/auth";
 
 export async function GET(req: NextRequest) {
-  const denied = await permissionGuard("storage", "readonly");
+  const denied = await permissionGuard("storage", "readonly", "view");
   if (denied) return denied;
   try {
     await connectDB();
@@ -51,7 +54,7 @@ export async function GET(req: NextRequest) {
 }
 
 export async function POST(req: NextRequest) {
-  const denied = await permissionGuard("storage", "full");
+  const denied = await permissionGuard("storage", "full", "item_add");
   if (denied) return denied;
   try {
     await connectDB();
@@ -62,6 +65,18 @@ export async function POST(req: NextRequest) {
       borrowedQuantity: 0,
       status: "out-of-stock",
     });
+
+    const session = await getServerSession(authOptions);
+    await History.create({
+      section: "storage",
+      type: "item_added",
+      performedBy: (session?.user as any)?.id,
+      item: item._id,
+      relatedId: item._id,
+      notes: `إضافة عنصر جديد إلى المستودع: ${item.name} (${item.category})`,
+      date: new Date(),
+    });
+
     return ok(item, 201);
   } catch (e: any) {
     return err(e.message, 500);

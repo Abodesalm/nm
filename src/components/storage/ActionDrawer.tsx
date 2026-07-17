@@ -11,15 +11,22 @@ interface Props {
   onSaved: () => void;
   item: any;
   defaultExchange?: number;
+  /** When set, the drawer becomes a read-only "mini profile" of this action */
+  viewAction?: any | null;
 }
 
 const ACTION_TYPES = [
   { value: "stock_in", label: "إدخال مخزون", color: "#22c55e" },
   { value: "stock_out", label: "إخراج مخزون", color: "#ef4444" },
   { value: "consume", label: "استهلاك", color: "#f97316" },
+  { value: "usage", label: "استخدام", color: "#eab308" },
   { value: "borrow", label: "استعارة", color: "#3b82f6" },
+  { value: "custody", label: "أمانة", color: "#14b8a6" },
   { value: "return", label: "إرجاع", color: "#8b5cf6" },
 ];
+
+/** Types that flow INTO the warehouse — destination is always المستودع */
+const INCREASING_TYPES = ["stock_in", "return"];
 
 const GOAL_MODELS = [
   { value: "employees", label: "موظف" },
@@ -71,7 +78,9 @@ export function ActionDrawer({
   onSaved,
   item,
   defaultExchange = 0,
+  viewAction = null,
 }: Props) {
+  const readOnly = !!viewAction;
   const [actionType, setActionType] = useState("stock_in");
   const [quantity, setQuantity] = useState("");
   const [allEmployees, setAllEmployees] = useState<any[]>([]);
@@ -96,6 +105,33 @@ export function ActionDrawer({
   // For employees/customers: live search
   const [goalSearch, setGoalSearch] = useState("");
   const [goalResults, setGoalResults] = useState<any[]>([]);
+
+  // Read-only mode: fill the form from the existing action
+  useEffect(() => {
+    if (!open || !viewAction) return;
+    setActionType(viewAction.type ?? "stock_in");
+    setQuantity(String(viewAction.quantity ?? ""));
+    setSelectedEmployee(
+      viewAction.employee && typeof viewAction.employee === "object"
+        ? viewAction.employee
+        : null,
+    );
+    setGoalModel(viewAction.goal_model ?? "");
+    setSelectedGoal(
+      viewAction.goal_id && typeof viewAction.goal_id === "object"
+        ? viewAction.goal_id
+        : null,
+    );
+    setNotes(viewAction.notes ?? "");
+    setDate(
+      viewAction.date
+        ? new Date(viewAction.date).toISOString().split("T")[0]
+        : new Date().toISOString().split("T")[0],
+    );
+    const hasCost = viewAction.cost && (viewAction.cost.USD || viewAction.cost.SP);
+    setShowCost(!!hasCost);
+    setCost(hasCost ? viewAction.cost : { USD: 0, SP: 0, exchange: 0 });
+  }, [open, viewAction]);
 
   // Reset on close
   useEffect(() => {
@@ -123,6 +159,7 @@ export function ActionDrawer({
 
   // Load all points when goal = "points"
   useEffect(() => {
+    if (readOnly) return;
     if (goalModel === "points") {
       fetch("/api/points?limit=500")
         .then((r) => r.json())
@@ -138,6 +175,7 @@ export function ActionDrawer({
 
   // Live search for employees/customers
   useEffect(() => {
+    if (readOnly) return;
     if (goalModel === "points" || !goalModel || goalSearch.trim().length < 2) {
       setGoalResults([]);
       return;
@@ -153,7 +191,7 @@ export function ActionDrawer({
 
   // Load all employees once when drawer opens
   useEffect(() => {
-    if (!open) return;
+    if (!open || readOnly) return;
     fetch("/api/employees?limit=500")
       .then((r) => r.json())
       .then((d) => setAllEmployees(d.data?.employees ?? []));
@@ -195,8 +233,8 @@ export function ActionDrawer({
       notes,
       date,
       employee: selectedEmployee?._id ?? null,
-      goal_model: goalModel || null,
-      goal_id: selectedGoal?._id ?? null,
+      goal_model: INCREASING_TYPES.includes(actionType) ? null : goalModel || null,
+      goal_id: INCREASING_TYPES.includes(actionType) ? null : selectedGoal?._id ?? null,
       cost: showCost ? cost : null,
       loan:
         showCost && isLoan
@@ -224,7 +262,11 @@ export function ActionDrawer({
     <Drawer
       open={open}
       onClose={onClose}
-      title={`إضافة حركة — ${item?.name}`}
+      title={
+        readOnly
+          ? `تفاصيل الحركة — ${item?.name}`
+          : `إضافة حركة — ${item?.name}`
+      }
       width={480}
     >
       <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
@@ -236,11 +278,19 @@ export function ActionDrawer({
             {ACTION_TYPES.map((t) => (
               <button
                 key={t.value}
-                onClick={() => setActionType(t.value)}
+                disabled={readOnly}
+                onClick={() => {
+                  if (readOnly) return;
+                  setActionType(t.value);
+                  if (INCREASING_TYPES.includes(t.value)) {
+                    setGoalModel("");
+                    setSelectedGoal(null);
+                  }
+                }}
                 style={{
                   height: 38,
                   borderRadius: 8,
-                  cursor: "pointer",
+                  cursor: readOnly ? "default" : "pointer",
                   border: `2px solid ${actionType === t.value ? t.color : "var(--border)"}`,
                   background:
                     actionType === t.value ? `${t.color}18` : "transparent",
@@ -249,6 +299,7 @@ export function ActionDrawer({
                   fontFamily: "'Tajawal', sans-serif",
                   fontWeight: actionType === t.value ? 600 : 400,
                   transition: "all 0.15s",
+                  opacity: readOnly && actionType !== t.value ? 0.4 : 1,
                 }}
               >
                 {t.label}
@@ -266,6 +317,7 @@ export function ActionDrawer({
               style={inputStyle}
               type="number"
               value={quantity}
+              disabled={readOnly}
               onChange={(e) => setQuantity(e.target.value)}
               placeholder="0"
               onFocus={(e) => (e.target.style.borderColor = "#f97316")}
@@ -277,6 +329,7 @@ export function ActionDrawer({
               style={inputStyle}
               type="date"
               value={date}
+              disabled={readOnly}
               onChange={(e) => setDate(e.target.value)}
               onFocus={(e) => (e.target.style.borderColor = "#f97316")}
               onBlur={(e) => (e.target.style.borderColor = "var(--border)")}
@@ -286,6 +339,15 @@ export function ActionDrawer({
 
         {/* Employee search */}
         <Field label="الموظف المسؤول">
+          {readOnly ? (
+            <ReadOnlyValue
+              label={
+                selectedEmployee
+                  ? `${selectedEmployee.fullName} #${selectedEmployee.id_num}`
+                  : "—"
+              }
+            />
+          ) : (
           <SearchPicker
             selected={selectedEmployee}
             displayKey={(e) => `${e.fullName} #${e.id_num}`}
@@ -310,9 +372,38 @@ export function ActionDrawer({
             )}
             placeholder="ابحث عن موظف..."
           />
+          )}
         </Field>
 
-        {/* Goal */}
+        {/* Goal — increasing actions always land in the warehouse */}
+        {INCREASING_TYPES.includes(actionType) ? (
+          <Field label="الوجهة">
+            <input
+              style={{ ...inputStyle, opacity: 0.7, cursor: "not-allowed" }}
+              value="المستودع"
+              disabled
+              readOnly
+            />
+          </Field>
+        ) : readOnly ? (
+          <Field label="الوجهة">
+            <ReadOnlyValue
+              label={
+                !goalModel
+                  ? "بدون وجهة"
+                  : `${GOAL_MODELS.find((m) => m.value === goalModel)?.label ?? goalModel}: ${
+                      selectedGoal
+                        ? (selectedGoal.fullName ??
+                          selectedGoal.name ??
+                          (selectedGoal.point_number != null
+                            ? `#${selectedGoal.point_number}`
+                            : `#${selectedGoal.customer_number ?? ""}`))
+                        : "—"
+                    }`
+              }
+            />
+          </Field>
+        ) : (
         <Field label="الوجهة">
           <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
             <select
@@ -464,6 +555,7 @@ export function ActionDrawer({
             )}
           </div>
         </Field>
+        )}
 
         {/* Notes */}
         <Field label="ملاحظات">
@@ -474,7 +566,8 @@ export function ActionDrawer({
               padding: "10px 12px",
               resize: "vertical",
             }}
-            value={notes}
+            value={readOnly && !notes ? "لا توجد ملاحظات" : notes}
+            disabled={readOnly}
             onChange={(e) => setNotes(e.target.value)}
             placeholder="ملاحظات..."
             onFocus={(e) => (e.target.style.borderColor = "#f97316")}
@@ -483,7 +576,15 @@ export function ActionDrawer({
         </Field>
 
         {/* Cost (optional) */}
-        {showCost ? (
+        {readOnly ? (
+          showCost && (
+            <Field label="التكلفة">
+              <ReadOnlyValue
+                label={`${(cost.SP ?? 0).toLocaleString("en")} ل.س ≈ $${cost.USD ?? 0}`}
+              />
+            </Field>
+          )
+        ) : showCost ? (
           <Field label="التكلفة (اختياري)">
             <MoneyInput
               value={cost}
@@ -677,8 +778,9 @@ export function ActionDrawer({
               cursor: "pointer",
             }}
           >
-            إلغاء
+            {readOnly ? "إغلاق" : "إلغاء"}
           </button>
+          {!readOnly && (
           <button
             onClick={handleSave}
             disabled={saving}
@@ -703,9 +805,32 @@ export function ActionDrawer({
             {saving && <Spinner size={16} />}
             {saving ? "جاري الحفظ..." : "حفظ الحركة"}
           </button>
+          )}
         </div>
       </div>
     </Drawer>
+  );
+}
+
+/** Non-editable value display used by the read-only mini profile */
+function ReadOnlyValue({ label }: { label: string }) {
+  return (
+    <div
+      style={{
+        display: "flex",
+        alignItems: "center",
+        padding: "0 12px",
+        height: 40,
+        borderRadius: 8,
+        border: "1px solid var(--border)",
+        background: "var(--surface)",
+        fontSize: 13.5,
+        color: "var(--text)",
+        fontFamily: "'Tajawal', sans-serif",
+      }}
+    >
+      {label}
+    </div>
   );
 }
 

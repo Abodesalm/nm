@@ -11,6 +11,8 @@ export interface ITreasuryEntry extends Document {
   amount: { USD: number; SP: number; exchange: number };
   description: string;
   notes?: string;
+  /** صندوق — optional money category (Settings.funds subdoc _id) */
+  category?: mongoose.Types.ObjectId | null;
   relatedInvoice?: mongoose.Types.ObjectId | null;
   relatedLoan?: mongoose.Types.ObjectId | null;
   date: Date;
@@ -33,6 +35,7 @@ const TreasuryEntrySchema = new Schema<ITreasuryEntry>(
     amount: MoneySchema,
     description: { type: String, required: true },
     notes: String,
+    category: { type: Schema.Types.ObjectId, default: null },
     relatedInvoice: {
       type: Schema.Types.ObjectId,
       ref: "Invoice",
@@ -45,6 +48,7 @@ const TreasuryEntrySchema = new Schema<ITreasuryEntry>(
 );
 
 TreasuryEntrySchema.index({ date: -1 });
+TreasuryEntrySchema.index({ category: 1 });
 TreasuryEntrySchema.index({ relatedInvoice: 1 });
 TreasuryEntrySchema.index({ relatedLoan: 1 });
 

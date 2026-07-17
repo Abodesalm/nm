@@ -7,7 +7,7 @@ import "@/lib/db/models/StorageItem";
 import { permissionGuard, ok, err } from "@/lib/api-factory";
 
 export async function GET(req: NextRequest) {
-  const denied = await permissionGuard("finance", "readonly");
+  const denied = await permissionGuard("finance", "readonly", "view");
   if (denied) return denied;
 
   try {

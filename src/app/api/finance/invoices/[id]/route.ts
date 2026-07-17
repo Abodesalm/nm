@@ -10,7 +10,7 @@ export async function GET(
   _req: NextRequest,
   context: { params: Promise<{ id: string }> },
 ) {
-  const denied = await permissionGuard("finance", "readonly");
+  const denied = await permissionGuard("finance", "readonly", "view");
   if (denied) return denied;
 
   try {

@@ -13,6 +13,7 @@ const SECTIONS = [
   "finance",
   "documents",
   "settings",
+  "fieldwork",
 ];
 
 async function seed() {

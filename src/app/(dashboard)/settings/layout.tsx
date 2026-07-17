@@ -3,12 +3,13 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { cn } from "@/lib/utils";
-import { Settings, Map, Users, Wifi, UserCog, Palette } from "lucide-react";
+import { Settings, Map, Users, Wifi, UserCog, Palette, Wallet } from "lucide-react";
 
 const settingsNav = [
   { href: "/settings/general", label: "عام", icon: Settings },
   { href: "/settings/regions", label: "المناطق", icon: Map },
   { href: "/settings/hr", label: "الموظفين", icon: Users },
+  { href: "/settings/finance", label: "المالية", icon: Wallet },
   /*   { href: "/settings/customers", label: "الزبائن", icon: Wifi },
    */ { href: "/settings/users", label: "المستخدمين", icon: UserCog },
   { href: "/settings/appearance", label: "المظهر", icon: Palette },

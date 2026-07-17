@@ -15,6 +15,7 @@ import {
   Trash2,
   HandCoins,
   Handshake,
+  Wallet,
 } from "lucide-react";
 
 function fmtSP(n: number) {
@@ -202,6 +203,12 @@ export function TreasurySection() {
             <button onClick={() => openDrawer("list")} style={actionBtn}>
               <List size={13} /> الحركات
             </button>
+            <button
+              onClick={() => router.push("/finance/categories")}
+              style={{ ...actionBtn, color: "#f97316", borderColor: "rgba(249,115,22,0.35)" }}
+            >
+              <Wallet size={13} /> الصناديق
+            </button>
           </div>
         </div>
 
@@ -356,9 +363,16 @@ function TreasuryDrawer({
   const [amount, setAmount] = useState({ USD: 0, SP: 0, exchange: 0 });
   const [description, setDescription] = useState("");
   const [notes, setNotes] = useState("");
+  const [category, setCategory] = useState("");
+  const [funds, setFunds] = useState<{ _id: string; name: string }[]>([]);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
   const [confirmDelete, setConfirmDelete] = useState<string | null>(null);
+
+  const fundName = useCallback(
+    (id?: string | null) => funds.find((f) => f._id === id)?.name ?? null,
+    [funds],
+  );
 
   const fetchEntries = useCallback(async () => {
     setLoading(true);
@@ -382,7 +396,12 @@ function TreasuryDrawer({
       setAmount({ USD: 0, SP: 0, exchange: 0 });
       setDescription("");
       setNotes("");
+      setCategory("");
       setError("");
+      fetch("/api/settings/finance")
+        .then((r) => r.json())
+        .then((d) => setFunds(d.data?.funds ?? []))
+        .catch(() => {});
     }
   }, [open, mode, fetchEntries]);
 
@@ -396,7 +415,13 @@ function TreasuryDrawer({
     const res = await fetch("/api/finance/treasury", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ type: formType, amount, description, notes }),
+      body: JSON.stringify({
+        type: formType,
+        amount,
+        description,
+        notes,
+        category: category || null,
+      }),
     });
     const json = await res.json();
     setSaving(false);
@@ -408,6 +433,7 @@ function TreasuryDrawer({
     setAmount({ USD: 0, SP: 0, exchange: 0 });
     setDescription("");
     setNotes("");
+    setCategory("");
     await fetchEntries();
     onUpdate();
   }
@@ -579,6 +605,31 @@ function TreasuryDrawer({
                   fontFamily: "'Cairo', sans-serif",
                 }}
               >
+                الصندوق (اختياري)
+              </label>
+              <select
+                style={{ ...inputStyle, cursor: "pointer" }}
+                value={category}
+                onChange={(e) => setCategory(e.target.value)}
+              >
+                <option value="">بدون صندوق</option>
+                {funds.map((f) => (
+                  <option key={f._id} value={f._id}>
+                    {f.name}
+                  </option>
+                ))}
+              </select>
+            </div>
+
+            <div style={{ display: "flex", flexDirection: "column", gap: 5 }}>
+              <label
+                style={{
+                  fontSize: 12,
+                  fontWeight: 600,
+                  color: "var(--text-muted)",
+                  fontFamily: "'Cairo', sans-serif",
+                }}
+              >
                 ملاحظات
               </label>
               <input
@@ -708,6 +759,12 @@ function TreasuryDrawer({
                     <p style={{ fontSize: 11.5, color: "var(--text-muted)" }}>
                       {SOURCE_LABELS[e.source] ?? e.source} —{" "}
                       {new Date(e.date).toLocaleDateString("en-GB")}
+                      {fundName(e.category) ? (
+                        <span style={{ color: "#f97316" }}>
+                          {" "}
+                          — {fundName(e.category)}
+                        </span>
+                      ) : null}
                       {e.notes ? ` — ${e.notes}` : ""}
                     </p>
                   </div>
@@ -730,12 +787,13 @@ function TreasuryDrawer({
                   {e.source === "manual" && (
                     <button
                       onClick={() => setConfirmDelete(e._id)}
+                      title="حذف الحركة"
                       style={{
-                        width: 28,
-                        height: 28,
+                        width: 30,
+                        height: 30,
                         borderRadius: 7,
-                        border: "none",
-                        background: "transparent",
+                        border: "1px solid rgba(239,68,68,0.3)",
+                        background: "rgba(239,68,68,0.08)",
                         color: "#ef4444",
                         cursor: "pointer",
                         display: "flex",
@@ -743,8 +801,16 @@ function TreasuryDrawer({
                         justifyContent: "center",
                         flexShrink: 0,
                       }}
+                      onMouseEnter={(ev) =>
+                        (ev.currentTarget.style.background =
+                          "rgba(239,68,68,0.18)")
+                      }
+                      onMouseLeave={(ev) =>
+                        (ev.currentTarget.style.background =
+                          "rgba(239,68,68,0.08)")
+                      }
                     >
-                      <Trash2 size={13} />
+                      <Trash2 size={14} />
                     </button>
                   )}
                 </div>

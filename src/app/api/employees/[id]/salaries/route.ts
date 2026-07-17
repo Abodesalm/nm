@@ -16,7 +16,7 @@ export async function POST(
   req: NextRequest,
   context: { params: Promise<{ id: string }> },
 ) {
-  const denied = await permissionGuard("employees", "full");
+  const denied = await permissionGuard("employees", "full", "salaries_add");
   if (denied) return denied;
 
   try {
@@ -102,7 +102,7 @@ export async function DELETE(
   req: NextRequest,
   context: { params: Promise<{ id: string }> },
 ) {
-  const denied = await permissionGuard("employees", "full");
+  const denied = await permissionGuard("employees", "full", "salaries_delete");
   if (denied) return denied;
 
   try {

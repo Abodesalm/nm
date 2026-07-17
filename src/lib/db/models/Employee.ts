@@ -19,6 +19,8 @@ export interface IEmployee extends Document {
     date: Date;
     isAbsent: boolean;
     excused: boolean;
+    /** Manual overtime flag — overrides fieldwork auto-detection for that day */
+    overtime?: boolean;
     reason?: string;
     note?: string;
     createdAt: Date;
@@ -51,6 +53,8 @@ export interface IEmployee extends Document {
   hrPoints: {
     _id: mongoose.Types.ObjectId;
     points: number;
+    /** سعر النقطة — locked per adding operation; value = points × pricePerPoint */
+    pricePerPoint?: { USD: number; SP: number; exchange: number } | null;
     reason?: string;
     date: Date;
     createdAt: Date;
@@ -87,6 +91,7 @@ const EmployeeSchema = new Schema<IEmployee>(
         date: Date,
         isAbsent: { type: Boolean, default: true },
         excused: { type: Boolean, default: false },
+        overtime: { type: Boolean, default: false },
         reason: String,
         note: String,
         createdAt: { type: Date, default: Date.now },
@@ -127,6 +132,7 @@ const EmployeeSchema = new Schema<IEmployee>(
     hrPoints: [
       {
         points: { type: Number, required: true },
+        pricePerPoint: { type: Schema.Types.Mixed, default: null },
         reason: String,
         date: { type: Date, default: Date.now },
         createdAt: { type: Date, default: Date.now },

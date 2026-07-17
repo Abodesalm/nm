@@ -12,7 +12,7 @@ export interface IStorageItem extends Document {
   borrowedQuantity: number;
   actions: {
     _id: mongoose.Types.ObjectId;
-    type: "stock_in" | "stock_out" | "consume" | "borrow" | "return";
+    type: "stock_in" | "stock_out" | "consume" | "usage" | "borrow" | "custody" | "return";
     quantity: number;
     employee?: mongoose.Types.ObjectId;
     goal_model?: "customers" | "points" | "employees" | null;
@@ -48,7 +48,7 @@ const StorageItemSchema = new Schema<IStorageItem>(
       {
         type: {
           type: String,
-          enum: ["stock_in", "stock_out", "consume", "borrow", "return"],
+          enum: ["stock_in", "stock_out", "consume", "usage", "borrow", "custody", "return"],
           required: true,
         },
         quantity: { type: Number, required: true },
