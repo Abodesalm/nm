@@ -64,14 +64,14 @@ export async function POST(req: NextRequest) {
       mainRegion: body.mainRegion,
     });
     if (existing)
-      return err("رقم النقطة موجود مسبقاً في هذه المنطقة الرئيسية", 400);
+      return err("رقم العلبة موجود مسبقاً في هذه المنطقة الرئيسية", 400);
 
     // Validate provider point child count
     if (body.providerPoint) {
       const provider = await Point.findById(body.providerPoint);
-      if (!provider) return err("نقطة المزود غير موجودة", 400);
+      if (!provider) return err("علبة المزود غير موجودة", 400);
       if (provider.childPoints.length >= 4)
-        return err("نقطة المزود وصلت للحد الأقصى من النقاط الفرعية (4)", 400);
+        return err("علبة المزود وصلت للحد الأقصى من العُلب الفرعية (4)", 400);
     }
 
     // Calculate ports
@@ -109,7 +109,7 @@ export async function POST(req: NextRequest) {
         type: "point_added",
         performedBy: addedBy,
         point: point._id,
-        notes: `تمت إضافة النقطة: ${point.name || `#${point.point_number}`}`,
+        notes: `تمت إضافة العلبة: ${point.name || `#${point.point_number}`}`,
         date: new Date(),
       });
     }

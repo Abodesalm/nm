@@ -50,10 +50,10 @@ export default function PointsPage() {
           className="font-title font-bold"
           style={{ fontSize: 22, color: "var(--text)" }}
         >
-          النقاط
+          العُلب
         </h1>
         <p style={{ fontSize: 13, color: "var(--text-muted)", marginTop: 4 }}>
-          إدارة نقاط الشبكة والتوزيع
+          إدارة عُلب الشبكة والتوزيع
         </p>
       </div>
 
@@ -247,7 +247,7 @@ export default function PointsPage() {
                             marginRight: 4,
                           }}
                         >
-                          نقطة
+                          علبة
                         </span>
                       </p>
 

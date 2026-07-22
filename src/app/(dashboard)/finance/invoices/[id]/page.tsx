@@ -8,12 +8,16 @@ const TYPE_LABELS: Record<string, string> = {
   salary:         "راتب",
   subscription:   "اشتراك",
   storage_action: "تكلفة مخزن",
+  bonus:          "مكافأة/تعويض",
+  treasury:       "حركة خزينة",
 };
 
 const TYPE_COLORS: Record<string, string> = {
   salary:         "#3b82f6",
   subscription:   "#22c55e",
   storage_action: "#f97316",
+  bonus:          "#8b5cf6",
+  treasury:       "#14b8a6",
 };
 
 function fmtDate(d: string) {

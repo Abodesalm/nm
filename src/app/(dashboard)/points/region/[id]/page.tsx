@@ -100,7 +100,7 @@ export default function RegionPage({
                 marginTop: 4,
               }}
             >
-              {region?.mainRegion} · {points.length} نقطة
+              {region?.mainRegion} · {points.length} علبة
             </p>
           </div>
         </div>

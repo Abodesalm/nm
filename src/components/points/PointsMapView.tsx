@@ -144,7 +144,7 @@ export function PointsMapView({ points, onEdit, onDelete }: Props) {
           color: "#f97316",
           fontFamily: "'Tajawal', sans-serif",
         }}>
-          لا توجد نقاط بإحداثيات مسجلة. أضف خط العرض والطول عند تعديل النقاط لعرضها على الخريطة.
+          لا توجد عُلب بإحداثيات مسجلة. أضف خط العرض والطول عند تعديل العُلب لعرضها على الخريطة.
         </div>
       )}
       <div

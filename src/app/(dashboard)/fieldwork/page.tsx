@@ -136,7 +136,7 @@ export default function FieldWorkPage() {
               textWrap: "balance",
             }}
           >
-            العمل الميداني
+            تفقد العمل
           </h1>
           <p
             style={{

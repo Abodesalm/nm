@@ -204,7 +204,7 @@ function PointNode({
                     fontFamily: "'Tajawal', sans-serif",
                   }}
                 >
-                  {children.length} نقطة فرعية
+                  {children.length} علبة فرعية
                 </span>
               )}
             </div>
@@ -224,7 +224,7 @@ function PointNode({
             {[
               {
                 icon: <Plus size={13} />,
-                title: "إضافة نقطة فرعية",
+                title: "إضافة علبة فرعية",
                 hoverColor: "#f97316",
                 action: () => onAdd(point),
               },
@@ -347,7 +347,7 @@ export function PointsTreeView({ points, onRefresh, prefilledRegion }: Props) {
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.message);
-      toast.success("تم حذف النقطة");
+      toast.success("تم حذف العلبة");
       onRefresh();
     } catch (e: any) {
       toast.error(e.message);
@@ -381,7 +381,7 @@ export function PointsTreeView({ points, onRefresh, prefilledRegion }: Props) {
         >
           <Server size={40} style={{ color: "var(--text-muted)", opacity: 0.4 }} />
           <p style={{ color: "var(--text-muted)", fontFamily: "'Tajawal', sans-serif", fontSize: 14 }}>
-            لا توجد نقاط في هذه المنطقة
+            لا توجد عُلب في هذه المنطقة
           </p>
           <button
             onClick={() => openAddDrawer(null)}
@@ -394,7 +394,7 @@ export function PointsTreeView({ points, onRefresh, prefilledRegion }: Props) {
               boxShadow: "0 4px 12px rgba(249,115,22,0.3)",
             }}
           >
-            <Plus size={13} /> إضافة أول نقطة
+            <Plus size={13} /> إضافة أول علبة
           </button>
         </div>
         {addDrawer}
@@ -456,7 +456,7 @@ export function PointsTreeView({ points, onRefresh, prefilledRegion }: Props) {
             transition: "background 0.15s",
           }}
         >
-          <Plus size={13} /> إضافة نقطة جذر
+          <Plus size={13} /> إضافة علبة جذر
         </button>
       </div>
 
@@ -499,8 +499,8 @@ export function PointsTreeView({ points, onRefresh, prefilledRegion }: Props) {
 
       {deleteTarget && (
         <ConfirmDialog
-          title="حذف النقطة"
-          message={`هل أنت متأكد من حذف النقطة "${deleteTarget.name}"؟`}
+          title="حذف العلبة"
+          message={`هل أنت متأكد من حذف العلبة "${deleteTarget.name}"؟`}
           confirmLabel="حذف"
           confirmColor="#ef4444"
           onConfirm={handleDelete}

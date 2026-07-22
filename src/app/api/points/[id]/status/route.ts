@@ -18,7 +18,7 @@ export async function PATCH(
       return err("حالة غير صالحة", 400);
 
     const point = await Point.findByIdAndUpdate(id, { status }, { new: true });
-    if (!point) return err("النقطة غير موجودة", 404);
+    if (!point) return err("العلبة غير موجودة", 404);
 
     return ok(point);
   } catch (e: any) {

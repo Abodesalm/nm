@@ -44,7 +44,7 @@ export const SECTION_ACTIONS: Record<string, PermissionAction[]> = {
   ],
   finance: [
     { key: "view", label: "عرض المالية" },
-    { key: "treasury_add", label: "إيداع/سحب في الخزينة" },
+    { key: "treasury_add", label: "دخل/خرج في الخزينة" },
     { key: "treasury_delete", label: "حذف حركة خزينة" },
     { key: "loans_add", label: "إضافة دين" },
     { key: "loans_manage", label: "تعديل/تسديد/حذف دين" },
@@ -55,7 +55,7 @@ export const SECTION_ACTIONS: Record<string, PermissionAction[]> = {
     { key: "delete", label: "حذف سجلات" },
   ],
   fieldwork: [
-    { key: "view", label: "عرض العمل الميداني" },
+    { key: "view", label: "عرض تفقد العمل" },
     { key: "status_change", label: "تغيير حالة موظف" },
   ],
   points: [],

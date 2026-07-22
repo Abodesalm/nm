@@ -40,7 +40,7 @@ const ACTION_LABELS: Record<
 const GOAL_AR: Record<string, string> = {
   employees: "موظف",
   customers: "زبون",
-  points: "نقطة",
+  points: "علبة",
 };
 
 export default function StorageItemPage() {

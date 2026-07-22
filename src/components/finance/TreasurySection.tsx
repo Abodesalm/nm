@@ -192,13 +192,13 @@ export function TreasurySection() {
               onClick={() => openDrawer("deposit")}
               style={{ ...actionBtn, color: "#22c55e", borderColor: "rgba(34,197,94,0.35)" }}
             >
-              <Plus size={13} /> إيداع
+              <Plus size={13} /> دخل
             </button>
             <button
               onClick={() => openDrawer("withdraw")}
               style={{ ...actionBtn, color: "#ef4444", borderColor: "rgba(239,68,68,0.35)" }}
             >
-              <Minus size={13} /> سحب
+              <Minus size={13} /> خرج
             </button>
             <button onClick={() => openDrawer("list")} style={actionBtn}>
               <List size={13} /> الحركات
@@ -532,8 +532,8 @@ function TreasuryDrawer({
             >
               {(
                 [
-                  { value: "deposit", label: "إيداع", color: "#22c55e" },
-                  { value: "withdraw", label: "سحب", color: "#ef4444" },
+                  { value: "deposit", label: "دخل", color: "#22c55e" },
+                  { value: "withdraw", label: "خرج", color: "#ef4444" },
                 ] as const
               ).map((t) => (
                 <button
@@ -683,8 +683,8 @@ function TreasuryDrawer({
                 {saving
                   ? "جاري الحفظ..."
                   : formType === "deposit"
-                    ? "إيداع"
-                    : "سحب"}
+                    ? "دخل"
+                    : "خرج"}
               </button>
             </div>
           </div>
@@ -704,7 +704,7 @@ function TreasuryDrawer({
               padding: "20px 0",
             }}
           >
-            لا توجد حركات بعد — أضف إيداعاً لتحديد رصيد الخزينة الحقيقي
+            لا توجد حركات بعد — أضف دخلاً لتحديد رصيد الخزينة الحقيقي
           </p>
         ) : (
           <>

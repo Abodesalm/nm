@@ -26,7 +26,7 @@ export async function GET(
       )
       .populate("employees", "fullName id_num phone")
       .populate("equipment.itemId", "name unit category");
-    if (!point) return err("النقطة غير موجودة", 404);
+    if (!point) return err("العلبة غير موجودة", 404);
 
     // Live port calculation (customers + childPoints + provider connection)
     const customersCount = await Customer.countDocuments({
@@ -60,7 +60,7 @@ export async function PATCH(
     const body = await req.json();
 
     const point = await Point.findById(id);
-    if (!point) return err("النقطة غير موجودة", 404);
+    if (!point) return err("العلبة غير موجودة", 404);
 
     // Handle provider point change
     if (
@@ -83,9 +83,9 @@ export async function PATCH(
       // Add to new provider
       if (body.providerPoint) {
         const newProvider = await Point.findById(body.providerPoint);
-        if (!newProvider) return err("نقطة المزود الجديدة غير موجودة", 400);
+        if (!newProvider) return err("علبة المزود الجديدة غير موجودة", 400);
         if (newProvider.childPoints.length >= 4)
-          return err("نقطة المزود وصلت للحد الأقصى (4 نقاط فرعية)", 400);
+          return err("علبة المزود وصلت للحد الأقصى (4 عُلب فرعية)", 400);
         await Point.findByIdAndUpdate(body.providerPoint, {
           $push: { childPoints: point._id },
           $inc: { usedPorts: 1 },
@@ -135,11 +135,11 @@ export async function DELETE(
     const session = await getServerSession(authOptions);
 
     const point = await Point.findById(id);
-    if (!point) return err("النقطة غير موجودة", 404);
+    if (!point) return err("العلبة غير موجودة", 404);
 
     // Cannot delete if has children
     if (point.childPoints.length > 0)
-      return err("لا يمكن حذف النقطة لأنها تحتوي على نقاط فرعية", 400);
+      return err("لا يمكن حذف العلبة لأنها تحتوي على عُلب فرعية", 400);
 
     // Cannot delete if has customers
     const customersCount = await Customer.countDocuments({
@@ -147,7 +147,7 @@ export async function DELETE(
       isDeleted: { $ne: true },
     });
     if (customersCount > 0)
-      return err("لا يمكن حذف النقطة لأنها تحتوي على زبائن", 400);
+      return err("لا يمكن حذف العلبة لأنها تحتوي على زبائن", 400);
 
     // Remove from provider's childPoints
     if (point.providerPoint) {
@@ -172,7 +172,7 @@ export async function DELETE(
         section: "points",
         type: "point_deleted",
         performedBy: deletedBy,
-        notes: `تم حذف النقطة: ${point.name || `#${point.point_number}`}`,
+        notes: `تم حذف العلبة: ${point.name || `#${point.point_number}`}`,
         date: new Date(),
       });
     }

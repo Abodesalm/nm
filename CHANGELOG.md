@@ -3,6 +3,23 @@
 > Appended to at the end of every session. Read at the start of every session.
 > Format per entry: date, what changed, files touched, next.
 
+## 2026-07-22 — Terminology (علبة / دخل-خرج / تفقد العمل), treasury movements → invoices, unified absences, NEXTAUTH_URL fix
+
+**What changed:**
+- **Fixed a login-breaking config bug:** `.env.local` `NEXTAUTH_URL` was missing the protocol (`localhost:3000`), so NextAuth defaulted to `https://` + secure-cookie mode. The middleware's `getToken` then failed while API `getServerSession` still worked → every page 307-redirected to `/login` (empty sidebar, no user name, no data, broken logout). Set it to `http://localhost:3000`. Diagnosed with authenticated curl (pages 307 vs APIs 200). NOTE for deploys: this must always include the scheme.
+- **Terminology renames (Arabic UI):** network **نقطة → علبة** (plural **نقاط → عُلب**) across the whole points domain (`components/points/*`, `app/(dashboard)/points/*`, `api/points/*`) + shared refs (storage action destination, history/dashboard/settings labels) — **HR نقاط التقييم left untouched**. Finance **إيداع → دخل**, **سحب → خرج** (treasury buttons, drawer toggle/labels, history labels, permission label, entry descriptions). **العمل الميداني → تفقد العمل** (sidebar, pages, permissions, users settings).
+- **Manual treasury movements now create invoices.** Both دخل → `earn` and خرج → `cost` create a `treasury`-type `Invoice` (new enum value) linked to the `TreasuryEntry` and **cascade-deleted** when the movement is deleted. Manual money movements now show in finance cost/earn totals and the invoice table (new "حركة خزينة" type label + filter). Verified: create دخل/خرج → +2 invoices with correct categories → delete movements → invoices gone.
+- **Unified absences on تفقد العمل (one source of truth).** Extracted the attendance calendar into a shared `AttendanceCalendar` component (auto-detected + manual overrides, day-override dialog). The تفقد العمل profile page and the employee-profile **AbsentsDrawer** now both render it, and the employee-profile "غيابات هذا الشهر" card pulls its count from `/api/fieldwork/attendance` — so numbers always match. Attendance GET now accepts **fieldwork OR employees** view permission.
+
+**Files touched:**
+- New: `src/components/fieldwork/AttendanceCalendar.tsx`.
+- Model: `Invoice` (+`treasury` type). Config: `.env.local` (`NEXTAUTH_URL` scheme).
+- Updated: `api/finance/treasury/route.ts` (invoice create + cascade), `api/fieldwork/attendance/[id]/route.ts` (dual guard), finance `page.tsx`/`InvoiceTable.tsx`/`invoices/[id]/page.tsx`, `TreasurySection.tsx`, `history/page.tsx`, `lib/permissions.ts`, `Sidebar.tsx`, `settings/users/page.tsx`, `fieldwork/page.tsx` + `fieldwork/[id]/page.tsx` (uses shared calendar), `AbsentsDrawer.tsx` (embeds shared calendar), `employees/[id]/page.tsx` (unified count), storage `ActionDrawer.tsx`/`[id]/page.tsx`, all `components/points/*` + `app/(dashboard)/points/*` + `api/points/*` (علبة rename), dashboards.
+
+**Verification:** `npx tsc --noEmit` clean; `npm run build` succeeds. Treasury-invoice create/cascade and the attendance API verified with authenticated requests against the running production server; all affected pages return 200 after login.
+
+**Next:** restart the server after pulling (env + HMR-guarded models). Terminology is display-only — DB `section`/`type` keys stay English (`points`, `point_added`, `treasury`).
+
 ## 2026-07-18 — Storage action types/mini-profile, صناديق money categories, HR points pricing, fieldwork attendance (auto absence/overtime), per-user sidebar, granular permissions, audit-log sweep
 
 **What changed:**

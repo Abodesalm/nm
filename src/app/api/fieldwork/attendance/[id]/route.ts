@@ -143,8 +143,12 @@ export async function GET(
   req: NextRequest,
   context: { params: Promise<{ id: string }> },
 ) {
-  const denied = await permissionGuard("fieldwork", "readonly", "view");
-  if (denied) return denied;
+  // Attendance is shared by تفقد العمل and the employee profile — allow either
+  const deniedFieldwork = await permissionGuard("fieldwork", "readonly", "view");
+  if (deniedFieldwork) {
+    const deniedEmployees = await permissionGuard("employees", "readonly", "view");
+    if (deniedEmployees) return deniedEmployees;
+  }
 
   try {
     const { id } = await context.params;

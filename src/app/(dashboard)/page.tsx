@@ -27,7 +27,7 @@ const stats = [
     bg: "rgba(249,115,22,0.08)",
   },
   {
-    title: "النقاط",
+    title: "العُلب",
     value: "47",
     sub: "41 متصل · 6 غير متصل",
     icon: MapPin,
@@ -54,7 +54,7 @@ const recentActivity = [
   {
     icon: XCircle,
     color: "#ef4444",
-    text: "نقطة الشبكة المنطقة الشمالية انقطع اتصالها",
+    text: "علبة الشبكة المنطقة الشمالية انقطع اتصالها",
     time: "منذ 18 دقيقة",
   },
   {
@@ -295,7 +295,7 @@ export default function DashboardPage() {
                 color: "#f97316",
               },
               {
-                label: "النقاط المتصلة",
+                label: "العُلب المتصلة",
                 value: 41,
                 total: 47,
                 color: "#22c55e",

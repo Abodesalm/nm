@@ -93,7 +93,7 @@ export default function PointProfilePage({
         }}
       >
         <p style={{ color: "var(--text-muted)", fontSize: 14, fontFamily: "'Tajawal', sans-serif" }}>
-          النقطة غير موجودة
+          العلبة غير موجودة
         </p>
       </div>
     );
@@ -634,7 +634,7 @@ export default function PointProfilePage({
               fontSize: 13,
             }}
           >
-            لا يوجد زبائن في هذه النقطة
+            لا يوجد زبائن في هذه العلبة
           </div>
         ) : (
           <>
@@ -837,7 +837,7 @@ function EquipmentCard({
   const [deleting, setDeleting] = useState(false);
 
   async function handleRemove() {
-    if (!confirm(`هل تريد إزالة "${eq.itemId?.name ?? "هذا العنصر"}" من معدات النقطة؟`)) return;
+    if (!confirm(`هل تريد إزالة "${eq.itemId?.name ?? "هذا العنصر"}" من معدات العلبة؟`)) return;
     setDeleting(true);
     try {
       const res = await fetch(`/api/points/${pointId}/equipment`, {
@@ -847,7 +847,7 @@ function EquipmentCard({
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.message);
-      toast.success("تمت الإزالة من معدات النقطة");
+      toast.success("تمت الإزالة من معدات العلبة");
       onRemoved();
     } catch (e: any) {
       toast.error(e.message);

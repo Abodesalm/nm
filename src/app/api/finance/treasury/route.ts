@@ -1,9 +1,14 @@
 import { NextRequest } from "next/server";
 import { connectDB } from "@/lib/db/mongoose";
 import TreasuryEntry from "@/lib/db/models/TreasuryEntry";
+import Invoice from "@/lib/db/models/Invoice";
 import History from "@/lib/db/models/History";
 import { permissionGuard, ok, err } from "@/lib/api-factory";
-import { computeTreasuryBalance, addTreasuryEntry } from "@/lib/treasury";
+import {
+  computeTreasuryBalance,
+  addTreasuryEntry,
+  nextInvoiceNumber,
+} from "@/lib/treasury";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 
@@ -48,17 +53,36 @@ export async function POST(req: NextRequest) {
     if (!body.amount || (!body.amount.SP && !body.amount.USD))
       return err("المبلغ مطلوب");
 
+    const description =
+      body.description ||
+      (body.type === "deposit" ? "دخل يدوي" : "خرج يدوي");
+
     const entry = await addTreasuryEntry({
       type: body.type,
       source: "manual",
       amount: body.amount,
-      description:
-        body.description ||
-        (body.type === "deposit" ? "إيداع يدوي" : "سحب يدوي"),
+      description,
       notes: body.notes ?? null,
       category: body.category ?? null,
       date: body.date ?? null,
     });
+
+    // Every manual movement is also an accrual invoice: دخل → earn, خرج → cost.
+    // Linked to the entry so deleting the movement cascades the invoice.
+    if (entry) {
+      const invoice = await Invoice.create({
+        invoiceNumber: await nextInvoiceNumber(),
+        type: "treasury",
+        category: body.type === "deposit" ? "earn" : "cost",
+        relatedId: entry._id,
+        amount: body.amount,
+        description,
+        notes: body.notes ?? null,
+        date: body.date ? new Date(body.date) : new Date(),
+      });
+      entry.relatedInvoice = invoice._id;
+      await entry.save();
+    }
 
     const session = await getServerSession(authOptions);
     await History.create({
@@ -66,7 +90,7 @@ export async function POST(req: NextRequest) {
       type: body.type === "deposit" ? "treasury_deposit" : "treasury_withdraw",
       performedBy: (session?.user as any)?.id,
       relatedId: entry?._id ?? null,
-      notes: `${body.type === "deposit" ? "إيداع" : "سحب"} يدوي في الخزينة: ${body.amount.SP?.toLocaleString("en") ?? 0} ل.س${body.description ? ` — ${body.description}` : ""}`,
+      notes: `${body.type === "deposit" ? "دخل" : "خرج"} يدوي في الخزينة: ${body.amount.SP?.toLocaleString("en") ?? 0} ل.س${body.description ? ` — ${body.description}` : ""}`,
       date: new Date(),
     });
 
@@ -90,6 +114,10 @@ export async function DELETE(req: NextRequest) {
     if (entry.source !== "manual")
       return err("لا يمكن حذف حركة مرتبطة بفاتورة أو دين — احذف المصدر نفسه");
 
+    // Cascade: remove the accrual invoice created with this movement
+    if (entry.relatedInvoice)
+      await Invoice.findByIdAndDelete(entry.relatedInvoice);
+
     await TreasuryEntry.findByIdAndDelete(entryId);
     await History.deleteOne({ relatedId: entryId });
 
@@ -98,7 +126,7 @@ export async function DELETE(req: NextRequest) {
       section: "finance",
       type: "treasury_entry_deleted",
       performedBy: (session?.user as any)?.id,
-      notes: `حذف حركة خزينة (${entry.type === "deposit" ? "إيداع" : "سحب"}): ${entry.amount?.SP?.toLocaleString("en") ?? 0} ل.س — ${entry.description}`,
+      notes: `حذف حركة خزينة (${entry.type === "deposit" ? "دخل" : "خرج"}): ${entry.amount?.SP?.toLocaleString("en") ?? 0} ل.س — ${entry.description}`,
       date: new Date(),
     });
 

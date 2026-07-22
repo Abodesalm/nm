@@ -20,8 +20,8 @@ const TYPE_LABELS: Record<string, string> = {
   consume:           "استهلاك",
   borrow:            "استعارة",
   return:            "إرجاع",
-  point_added:       "إضافة نقطة",
-  point_deleted:     "حذف نقطة",
+  point_added:       "إضافة علبة",
+  point_deleted:     "حذف علبة",
   customer_added:    "إضافة زبون",
   customer_suspended:"إيقاف زبون",
   customer_restored: "استعادة زبون",
@@ -109,7 +109,7 @@ export default function DashboardPage() {
       bg:    "rgba(249,115,22,0.08)",
     },
     {
-      title: "النقاط",
+      title: "العُلب",
       value: p.total ?? 0,
       sub:   `${p.online ?? 0} متصل · ${p.offline ?? 0} غير متصل`,
       icon:  MapPin,
@@ -128,7 +128,7 @@ export default function DashboardPage() {
 
   const statusBars = [
     { label: "الزبائن النشطون",    value: c.active ?? 0, total: c.total ?? 0, color: "#f97316" },
-    { label: "النقاط المتصلة",     value: p.online ?? 0, total: p.total ?? 0, color: "#22c55e" },
+    { label: "العُلب المتصلة",     value: p.online ?? 0, total: p.total ?? 0, color: "#22c55e" },
     { label: "الموظفون النشطون",   value: e.active ?? 0, total: e.total ?? 0, color: "#3b82f6" },
   ];
 

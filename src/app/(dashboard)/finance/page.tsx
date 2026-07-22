@@ -218,6 +218,7 @@ export default function FinancePage() {
       subscription: "اشتراك",
       storage_action: "تكلفة مخزن",
       bonus: "مكافأة/تعويض",
+      treasury: "حركة خزينة",
     };
     const rows = (json.data?.invoices ?? []).map((inv: any) => ({
       "رقم الفاتورة": `#${inv.invoiceNumber}`,
@@ -460,6 +461,7 @@ export default function FinancePage() {
             <option value="bonus">مكافآت وتعويضات</option>
             <option value="subscription">اشتراكات</option>
             <option value="storage_action">تكاليف مخزن</option>
+            <option value="treasury">حركات خزينة</option>
           </select>
 
           {/* Category filter */}

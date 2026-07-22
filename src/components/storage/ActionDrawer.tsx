@@ -31,7 +31,7 @@ const INCREASING_TYPES = ["stock_in", "return"];
 const GOAL_MODELS = [
   { value: "employees", label: "موظف" },
   { value: "customers", label: "زبون" },
-  { value: "points", label: "نقطة" },
+  { value: "points", label: "علبة" },
 ];
 
 const inputStyle: React.CSSProperties = {

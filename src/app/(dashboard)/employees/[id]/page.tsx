@@ -50,11 +50,22 @@ export default function EmployeeProfilePage() {
   const [bonusesDrawer, setBonusesDrawer] = useState(false);
   const [pointsDrawer, setPointsDrawer] = useState(false);
   const [confirmDelete, setConfirmDelete] = useState(false);
+  const [attendance, setAttendance] = useState<any>(null);
 
   const fetchEmployee = useCallback(async () => {
     const res = await fetch(`/api/employees/${id}`);
     const json = await res.json();
     setEmployee(json.data);
+  }, [id]);
+
+  // Unified absences: pull the current-month count from تفقد العمل (auto + manual)
+  const fetchAttendance = useCallback(async () => {
+    const n = new Date();
+    const res = await fetch(
+      `/api/fieldwork/attendance/${id}?month=${n.getMonth() + 1}&year=${n.getFullYear()}`,
+    );
+    const json = await res.json();
+    if (json.status === "success") setAttendance(json.data);
   }, [id]);
 
   useEffect(() => {
@@ -64,6 +75,7 @@ export default function EmployeeProfilePage() {
         fetchEmployee(),
         fetch("/api/settings").then((r) => r.json()),
         fetch("/api/settings/hr").then((r) => r.json()),
+        fetchAttendance(),
       ]);
       setSettings({
         departments: hrRes.data?.departments ?? [],
@@ -420,12 +432,12 @@ export default function EmployeeProfilePage() {
         {[
           {
             label: "غيابات هذا الشهر",
-            value: currentMonthAbsents.length,
-            sub: `${currentMonthAbsents.filter((a: any) => a.excused).length} بعذر`,
+            value: attendance?.monthStats?.absents ?? currentMonthAbsents.length,
+            sub: `${attendance?.monthStats?.excused ?? currentMonthAbsents.filter((a: any) => a.excused).length} بعذر`,
             color: "#f97316",
             bg: "rgba(249,115,22,0.08)",
             action: () => setAbsentsDrawer(true),
-            actionLabel: "عرض الغيابات",
+            actionLabel: "عرض الدوام والغيابات",
             icon: Calendar,
           },
           {
@@ -753,7 +765,10 @@ export default function EmployeeProfilePage() {
       />
       <AbsentsDrawer
         open={absentsDrawer}
-        onClose={() => setAbsentsDrawer(false)}
+        onClose={() => {
+          setAbsentsDrawer(false);
+          fetchAttendance();
+        }}
         employee={employee}
         onUpdate={fetchEmployee}
       />

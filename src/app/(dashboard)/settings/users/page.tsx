@@ -32,13 +32,13 @@ const SECTIONS = [
   { key: "employees", label: "الموظفين" },
   { key: "storage", label: "التخزين" },
   { key: "history", label: "السجل" },
-  { key: "points", label: "النقاط" },
+  { key: "points", label: "العُلب" },
   { key: "customers", label: "الزبائن" },
   { key: "problems", label: "المشاكل" },
   { key: "finance", label: "المالية" },
   { key: "documents", label: "الوثائق" },
   { key: "settings", label: "الإعدادات" },
-  { key: "fieldwork", label: "العمل الميداني" },
+  { key: "fieldwork", label: "تفقد العمل" },
 ];
 
 const inputStyle: React.CSSProperties = {

@@ -267,16 +267,16 @@ export function PointDrawer({
       );
       if (found) {
         setForm((f) => ({ ...f, providerPointId: found._id }));
-        toast.success(`تم العثور على النقطة: ${found.name}`);
+        toast.success(`تم العثور على العلبة: ${found.name}`);
       } else {
         setForm((f) => ({ ...f, providerPointId: "" }));
-        toast.error("لم يتم العثور على النقطة برقم " + num);
+        toast.error("لم يتم العثور على العلبة برقم " + num);
       }
     } catch {}
   }
 
   async function handleSave() {
-    if (!form.point_number) return toast.error("رقم النقطة مطلوب");
+    if (!form.point_number) return toast.error("رقم العلبة مطلوب");
     if (!form.mainRegion) return toast.error("المنطقة الرئيسية مطلوبة");
     if (!form.region) return toast.error("المنطقة مطلوبة");
 
@@ -308,7 +308,7 @@ export function PointDrawer({
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.message);
-      toast.success(isEdit ? "تم تحديث النقطة" : "تمت إضافة النقطة");
+      toast.success(isEdit ? "تم تحديث العلبة" : "تمت إضافة العلبة");
       onSaved();
       onClose();
     } catch (e: any) {
@@ -336,15 +336,15 @@ export function PointDrawer({
     <Drawer
       open={open}
       onClose={onClose}
-      title={isEdit ? "تعديل النقطة" : "إضافة نقطة جديدة"}
+      title={isEdit ? "تعديل العلبة" : "إضافة علبة جديدة"}
       width={520}
     >
       <div style={{ display: "flex", flexDirection: "column", gap: 18 }}>
 
-        {/* Row 1: رقم النقطة + الاسم */}
+        {/* Row 1: رقم العلبة + الاسم */}
         <div style={{ display: "grid", gridTemplateColumns: "1fr 2fr", gap: 10 }}>
           <div>
-            <FieldLabel>رقم النقطة *</FieldLabel>
+            <FieldLabel>رقم العلبة *</FieldLabel>
             <FocusInput
               type="number"
               placeholder="1"
@@ -353,7 +353,7 @@ export function PointDrawer({
             />
           </div>
           <div>
-            <FieldLabel>اسم النقطة *</FieldLabel>
+            <FieldLabel>اسم العلبة *</FieldLabel>
             <FocusInput
               placeholder="مثال: حي السلام"
               value={form.name}
@@ -394,14 +394,14 @@ export function PointDrawer({
         {/* Divider */}
         <div style={{ height: 1, background: "var(--border)" }} />
 
-        {/* نقطة المزود */}
+        {/* علبة المزود */}
         <div>
-          <FieldLabel>نقطة المزود</FieldLabel>
+          <FieldLabel>علبة المزود</FieldLabel>
           <div style={{ display: "flex", gap: 8 }}>
             <div style={{ flex: 1 }}>
               <FocusInput
                 type="number"
-                placeholder="رقم نقطة المزود (اتركه فارغاً للجذر)"
+                placeholder="رقم علبة المزود (اتركه فارغاً للجذر)"
                 value={form.providerPointNumber}
                 onChange={(v) =>
                   setForm((f) => ({ ...f, providerPointNumber: v, providerPointId: "" }))
@@ -422,7 +422,7 @@ export function PointDrawer({
                 fontFamily: "'Tajawal', sans-serif",
               }}
             >
-              ✓ تم ربط نقطة المزود
+              ✓ تم ربط علبة المزود
             </div>
           )}
           {form.providerPointNumber && !form.providerPointId && (
@@ -434,7 +434,7 @@ export function PointDrawer({
                 fontFamily: "'Tajawal', sans-serif",
               }}
             >
-              اضغط "بحث" للتحقق من النقطة
+              اضغط "بحث" للتحقق من العلبة
             </div>
           )}
         </div>
@@ -605,7 +605,7 @@ export function PointDrawer({
             }}
           >
             {saving && <Loader2 size={14} style={{ animation: "spin 1s linear infinite" }} />}
-            {isEdit ? "حفظ التعديلات" : "إضافة النقطة"}
+            {isEdit ? "حفظ التعديلات" : "إضافة العلبة"}
           </button>
           <button
             onClick={onClose}

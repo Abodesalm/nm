@@ -22,7 +22,7 @@ export async function DELETE(
     const { itemId } = await req.json();
 
     const point = await Point.findById(id);
-    if (!point) return err("النقطة غير موجودة", 404);
+    if (!point) return err("العلبة غير موجودة", 404);
 
     await Point.findByIdAndUpdate(id, {
       $pull: { equipment: { itemId } },

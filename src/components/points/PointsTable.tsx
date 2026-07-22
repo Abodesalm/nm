@@ -27,13 +27,13 @@ interface Props {
 }
 
 const ALL_COLUMNS = [
-  { key: "point_number", label: "رقم النقطة", locked: true },
+  { key: "point_number", label: "رقم العلبة", locked: true },
   { key: "name", label: "الاسم", locked: false },
   { key: "status", label: "الحالة", locked: false },
   { key: "totalPorts", label: "المنافذ الإجمالية", locked: false },
   { key: "freePorts", label: "المنافذ الحرة", locked: false },
   { key: "customersCount", label: "الزبائن", locked: false },
-  { key: "providerPoint", label: "نقطة المزود", locked: false },
+  { key: "providerPoint", label: "علبة المزود", locked: false },
 ];
 
 export function PointsTable({
@@ -106,7 +106,7 @@ export function PointsTable({
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.message);
-      toast.success("تم حذف النقطة");
+      toast.success("تم حذف العلبة");
       onRefresh();
     } catch (e: any) {
       toast.error(e.message);
@@ -325,7 +325,7 @@ export function PointsTable({
             boxShadow: "0 4px 12px rgba(249,115,22,0.3)",
           }}
         >
-          <Plus size={14} /> إضافة نقطة
+          <Plus size={14} /> إضافة علبة
         </button>
       </div>
 
@@ -341,7 +341,7 @@ export function PointsTable({
           <table style={{ width: "100%", borderCollapse: "collapse" }}>
             <thead>
               <tr>
-                {show("point_number") && <th style={thStyle}>رقم النقطة</th>}
+                {show("point_number") && <th style={thStyle}>رقم العلبة</th>}
                 {show("name") && <th style={thStyle}>الاسم</th>}
                 {show("status") && <th style={thStyle}>الحالة</th>}
                 {show("totalPorts") && (
@@ -349,7 +349,7 @@ export function PointsTable({
                 )}
                 {show("freePorts") && <th style={thStyle}>المنافذ الحرة</th>}
                 {show("customersCount") && <th style={thStyle}>الزبائن</th>}
-                {show("providerPoint") && <th style={thStyle}>نقطة المزود</th>}
+                {show("providerPoint") && <th style={thStyle}>علبة المزود</th>}
                 <th style={{ ...thStyle, width: 48, textAlign: "center" }} />
               </tr>
             </thead>
@@ -365,7 +365,7 @@ export function PointsTable({
                       color: "var(--text-muted)",
                     }}
                   >
-                    لا توجد نقاط
+                    لا توجد عُلب
                   </td>
                 </tr>
               ) : (
@@ -519,7 +519,7 @@ export function PointsTable({
                                 },
                                 {
                                   icon: <Plus size={13} />,
-                                  label: "إضافة نقطة فرعية",
+                                  label: "إضافة علبة فرعية",
                                   action: () => {
                                     setAddProvider(p);
                                     setAddDrawerOpen(true);
@@ -672,8 +672,8 @@ export function PointsTable({
       )}
       {deleteTarget && (
         <ConfirmDialog
-          title="حذف النقطة"
-          message={`هل أنت متأكد من حذف النقطة "${deleteTarget.name}"؟ لا يمكن التراجع عن هذا الإجراء.`}
+          title="حذف العلبة"
+          message={`هل أنت متأكد من حذف العلبة "${deleteTarget.name}"؟ لا يمكن التراجع عن هذا الإجراء.`}
           confirmLabel="حذف"
           confirmColor="#ef4444"
           onConfirm={handleDelete}
