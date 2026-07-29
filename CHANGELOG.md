@@ -20,6 +20,11 @@
 
 **Next:** none outstanding for this feature.
 
+## 2026-07-23 (2) — Excel export on the storage actions log
+
+- Added a "تصدير Excel" button to `/storage/actions`, matching the finance page's export convention: refetches the current filters with `limit=10000` (all matching rows, not just the visible page) and calls the shared `downloadXLSX` helper. Columns: العنصر, الفئة, النوع, الكمية, الوحدة, الموظف, الوجهة, التاريخ, الملاحظات, التكلفة (USD/ل.س). Refactored the page's filter-building into `buildFilterParams()` so the table fetch and the export reuse the exact same filter logic.
+- Verified: page renders, `/api/storage/actions?page=1&limit=10000` returns the full filtered set with all export columns populated.
+
 ## 2026-07-22 — Terminology (علبة / دخل-خرج / تفقد العمل), treasury movements → invoices, unified absences, NEXTAUTH_URL fix
 
 **What changed:**

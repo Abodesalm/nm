@@ -6,6 +6,7 @@ import { PageSpinner } from "@/components/shared/Spinner";
 import { Pagination } from "@/components/shared/Pagination";
 import { ConfirmDialog } from "@/components/shared/ConfirmDialog";
 import { ActionDrawer } from "@/components/storage/ActionDrawer";
+import { downloadXLSX } from "@/lib/exportXLSX";
 import {
   ArrowRight,
   Plus,
@@ -17,6 +18,7 @@ import {
   Minus,
   Package,
   StickyNote,
+  FileDown,
 } from "lucide-react";
 
 const ACTION_TYPES: {
@@ -233,6 +235,7 @@ function StorageActionsLogInner() {
   const [addOpen, setAddOpen] = useState(false);
   const [viewRow, setViewRow] = useState<any>(null);
   const [confirmDelete, setConfirmDelete] = useState<any>(null);
+  const [exporting, setExporting] = useState(false);
 
   // Apply ?types= from the دخل/خرج buttons once on load
   useEffect(() => {
@@ -278,12 +281,8 @@ function StorageActionsLogInner() {
     return () => clearTimeout(t);
   }, [empSearch]);
 
-  const fetchRows = useCallback(async () => {
-    setLoading(true);
-    const params = new URLSearchParams({
-      page: String(page),
-      limit: String(limit),
-    });
+  const buildFilterParams = useCallback(() => {
+    const params = new URLSearchParams();
     if (selectedItem) params.set("item", selectedItem._id);
     if (selectedEmployee) params.set("employee", selectedEmployee._id);
     if (types.length) params.set("types", types.join(","));
@@ -296,15 +295,8 @@ function StorageActionsLogInner() {
     }
     if (minQty) params.set("minQty", minQty);
     if (maxQty) params.set("maxQty", maxQty);
-
-    const res = await fetch(`/api/storage/actions?${params}`);
-    const json = await res.json();
-    setRows(json.data?.actions ?? []);
-    setTotal(json.data?.total ?? 0);
-    setLoading(false);
+    return params;
   }, [
-    page,
-    limit,
     selectedItem,
     selectedEmployee,
     types,
@@ -316,6 +308,19 @@ function StorageActionsLogInner() {
     minQty,
     maxQty,
   ]);
+
+  const fetchRows = useCallback(async () => {
+    setLoading(true);
+    const params = buildFilterParams();
+    params.set("page", String(page));
+    params.set("limit", String(limit));
+
+    const res = await fetch(`/api/storage/actions?${params}`);
+    const json = await res.json();
+    setRows(json.data?.actions ?? []);
+    setTotal(json.data?.total ?? 0);
+    setLoading(false);
+  }, [page, limit, buildFilterParams]);
 
   useEffect(() => {
     setPage(1);
@@ -373,6 +378,31 @@ function StorageActionsLogInner() {
     fetchRows();
   }
 
+  async function handleExport() {
+    setExporting(true);
+    const params = buildFilterParams();
+    params.set("page", "1");
+    params.set("limit", "10000");
+
+    const res = await fetch(`/api/storage/actions?${params}`);
+    const json = await res.json();
+    const exportRows = (json.data?.actions ?? []).map((row: any) => ({
+      العنصر: row.item?.name ?? "",
+      الفئة: row.item?.category ?? "",
+      النوع: TYPE_META[row.type]?.label ?? row.type,
+      الكمية: row.quantity,
+      الوحدة: row.item?.unit ?? "",
+      الموظف: row.employee?.fullName ?? "—",
+      الوجهة: row.goal_model ? (GOAL_AR[row.goal_model] ?? row.goal_model) : "—",
+      التاريخ: new Date(row.date).toLocaleDateString("en-GB"),
+      الملاحظات: row.notes ?? "",
+      "التكلفة (USD)": row.cost?.USD ?? "",
+      "التكلفة (ل.س)": row.cost?.SP ?? "",
+    }));
+    downloadXLSX(exportRows, `سجل-حركات-المخزون-${new Date().toISOString().slice(0, 10)}`);
+    setExporting(false);
+  }
+
   const thStyle: React.CSSProperties = {
     padding: "10px 14px",
     fontSize: 12,
@@ -427,27 +457,51 @@ function StorageActionsLogInner() {
             كل الحركات عبر جميع عناصر المستودع
           </p>
         </div>
-        <button
-          onClick={() => setAddOpen(true)}
-          style={{
-            display: "flex",
-            alignItems: "center",
-            gap: 7,
-            height: 40,
-            padding: "0 18px",
-            borderRadius: 9,
-            border: "none",
-            background: "#f97316",
-            color: "#fff",
-            fontSize: 14,
-            fontFamily: "'Tajawal', sans-serif",
-            fontWeight: 600,
-            cursor: "pointer",
-            boxShadow: "0 4px 12px rgba(249,115,22,0.3)",
-          }}
-        >
-          <Plus size={16} /> إضافة حركة
-        </button>
+        <div style={{ display: "flex", gap: 8 }}>
+          <button
+            onClick={handleExport}
+            disabled={exporting}
+            style={{
+              display: "flex",
+              alignItems: "center",
+              gap: 7,
+              height: 40,
+              padding: "0 16px",
+              borderRadius: 9,
+              border: "1px solid var(--border)",
+              background: "var(--surface)",
+              color: "var(--text)",
+              fontSize: 14,
+              fontFamily: "'Tajawal', sans-serif",
+              fontWeight: 600,
+              cursor: exporting ? "not-allowed" : "pointer",
+              opacity: exporting ? 0.7 : 1,
+            }}
+          >
+            <FileDown size={16} /> {exporting ? "جاري التصدير..." : "تصدير Excel"}
+          </button>
+          <button
+            onClick={() => setAddOpen(true)}
+            style={{
+              display: "flex",
+              alignItems: "center",
+              gap: 7,
+              height: 40,
+              padding: "0 18px",
+              borderRadius: 9,
+              border: "none",
+              background: "#f97316",
+              color: "#fff",
+              fontSize: 14,
+              fontFamily: "'Tajawal', sans-serif",
+              fontWeight: 600,
+              cursor: "pointer",
+              boxShadow: "0 4px 12px rgba(249,115,22,0.3)",
+            }}
+          >
+            <Plus size={16} /> إضافة حركة
+          </button>
+        </div>
       </div>
 
       {/* Filters */}
