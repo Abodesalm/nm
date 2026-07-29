@@ -396,8 +396,9 @@ function StorageActionsLogInner() {
       الوجهة: row.goal_model ? (GOAL_AR[row.goal_model] ?? row.goal_model) : "—",
       التاريخ: new Date(row.date).toLocaleDateString("en-GB"),
       الملاحظات: row.notes ?? "",
-      "التكلفة (USD)": row.cost?.USD ?? "",
-      "التكلفة (ل.س)": row.cost?.SP ?? "",
+      "نوع المبلغ": row.cost?.USD || row.cost?.SP ? (row.gain ? "مكسب" : "تكلفة") : "",
+      "المبلغ (USD)": row.cost?.USD ?? "",
+      "المبلغ (ل.س)": row.cost?.SP ?? "",
     }));
     downloadXLSX(exportRows, `سجل-حركات-المخزون-${new Date().toISOString().slice(0, 10)}`);
     setExporting(false);
@@ -871,8 +872,13 @@ function StorageActionsLogInner() {
                           </td>
                           <td style={tdStyle}>
                             {hasCost ? (
-                              <span style={{ color: "#ef4444", fontWeight: 600 }}>
-                                ${row.cost.USD?.toFixed(2)}
+                              <span
+                                style={{
+                                  color: row.gain ? "#22c55e" : "#ef4444",
+                                  fontWeight: 600,
+                                }}
+                              >
+                                {row.gain ? "+" : "-"}${row.cost.USD?.toFixed(2)}
                               </span>
                             ) : (
                               <span style={{ color: "var(--text-muted)" }}>—</span>

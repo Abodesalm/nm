@@ -3,6 +3,23 @@
 > Appended to at the end of every session. Read at the start of every session.
 > Format per entry: date, what changed, files touched, next.
 
+## 2026-07-23 (3) — Storage action cost can flip to a gain (تكلفة أو مكسب)
+
+**What changed:**
+- The ActionDrawer's "+ إضافة تكلفة" button is now "+ إضافة تكلفة أو مكسب", revealing a تكلفة/مكسب toggle above the money input. Flipping to مكسب reverses the whole downstream flow: `Invoice.category` becomes `earn` instead of `cost`, the treasury entry becomes `deposit` instead of `withdraw`, and "شراء بالدين" becomes "بيع بالدين" with the resulting `Loan.direction` flipped from `on_us` (علينا) to `for_us` (لنا) — the credit-side labels adjust too ("الجهة الدائنة (المورّد)" → "الجهة المدينة (الزبون)", "المدفوع الآن" → "المقبوض الآن").
+- `StorageItem.actions[].gain` (new boolean field, default false) persists which mode was used, so the read-only mini-profile, the item page's action list, and the global actions log all redisplay a gain in green with a `+` sign instead of misrepresenting it as a red cost.
+- Read-only mini-profile: `ReadOnlyValue` gained an optional `color` prop so the cost/gain field can render green when appropriate.
+- Both XLSX exports (per-item and the global log) gained a "نوع المبلغ" (تكلفة/مكسب) column alongside the existing SP/USD amount columns.
+
+**Files touched:**
+- Model: `StorageItem.ts` (+`actions.gain`), `types/index.ts` (`StorageAction.gain`).
+- Server: `lib/storageActions.ts` (`isGain` branches everywhere cost/loan/treasury are created — invoice category, loan direction, treasury type, all description strings and validation messages).
+- Client: `components/storage/ActionDrawer.tsx` (toggle, dynamic labels, `gain` in the POST body, read-only color), `api/storage/actions/route.ts` (`gain` added to the aggregation `$project`), `storage/actions/page.tsx` + `storage/[id]/page.tsx` (colored ±$ display, export column).
+
+**Verification:** `npx tsc --noEmit` clean; `npm run build` succeeds. Live end-to-end against the running server: a plain gain action produced an `earn` invoice + `deposit` treasury entry; a gain-on-credit action produced a `for_us` loan (vs the existing `on_us` cost-on-credit loan) plus a `deposit` for the paid-now portion; the subdoc correctly persisted `gain: true`; deleting both test actions cascaded the loan/invoice/treasury away and restored the item's original quantity (13) and action count (3) — confirming the shared add/delete lib handles gains exactly like costs, just mirrored.
+
+**Next:** none outstanding for this feature.
+
 ## 2026-07-23 — Global storage actions log (سجل حركات المخزون)
 
 **What changed:**

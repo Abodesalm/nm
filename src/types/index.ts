@@ -187,6 +187,8 @@ export interface StorageAction {
   goal_id?: string | null;
   notes?: string;
   cost?: MoneyField | null;
+  /** When cost is set: false = we paid (تكلفة), true = we were paid (مكسب) */
+  gain?: boolean;
   date: Date;
 }
 

@@ -109,11 +109,17 @@ export async function addStorageActionToItem(
   const item = await StorageItem.findById(itemId);
   if (!item) throw new ApiError("العنصر غير موجود", 404);
 
+  const isGain = !!body.gain;
+
   if (body.loan?.enabled) {
     if (!body.cost || (!body.cost.USD && !body.cost.SP))
-      throw new ApiError("الشراء بالدين يتطلب تكلفة");
+      throw new ApiError(
+        isGain ? "البيع بالدين يتطلب مكسباً" : "الشراء بالدين يتطلب تكلفة",
+      );
     if (!body.loan.party?.trim())
-      throw new ApiError("اسم الجهة الدائنة مطلوب");
+      throw new ApiError(
+        isGain ? "اسم الجهة المدينة مطلوب" : "اسم الجهة الدائنة مطلوب",
+      );
   }
 
   // Increasing actions always land in the warehouse — no external destination
@@ -150,7 +156,7 @@ export async function addStorageActionToItem(
     notes: body.cost?.USD
       ? [
           body.notes,
-          `التكلفة: $${body.cost.USD} / ${body.cost.SP?.toLocaleString("en")} ل.س`,
+          `${isGain ? "المكسب" : "التكلفة"}: $${body.cost.USD} / ${body.cost.SP?.toLocaleString("en")} ل.س`,
         ]
           .filter(Boolean)
           .join(" — ")
@@ -158,35 +164,38 @@ export async function addStorageActionToItem(
     date: body.date ?? new Date(),
   });
 
-  // Create invoice if this action has a cost
+  // Create invoice if this action has a cost or a gain
   if (body.cost && (body.cost.USD || body.cost.SP)) {
     const invoice = await Invoice.create({
       invoiceNumber: await nextInvoiceNumber(),
       type: "storage_action",
-      category: "cost",
+      category: isGain ? "earn" : "cost",
       storageItem: itemId,
       relatedId: newAction._id,
       amount: body.cost,
-      description: `تكلفة ${item.name} — ${body.type}`,
+      description: `${isGain ? "مكسب" : "تكلفة"} ${item.name} — ${body.type}`,
       notes: body.notes || null,
       date: body.date ? new Date(body.date) : new Date(),
     });
 
     if (body.loan?.enabled) {
-      // Credit purchase: full cost owed to the supplier; only the
-      // paid-now part leaves the box. The rest is tracked as a loan.
+      // Credit deal: the full amount is owed between us and the party; only
+      // the paid/received-now part moves the box now. The rest is a loan —
+      // "on_us" when we owe (cost), "for_us" when we're owed (gain).
       const paidNow = body.loan.paidNow;
       const hasPaidNow = paidNow && (paidNow.USD || paidNow.SP);
 
       const loan = await Loan.create({
-        direction: "on_us",
+        direction: isGain ? "for_us" : "on_us",
         party: body.loan.party.trim(),
         amount: body.cost,
         payments: hasPaidNow
           ? [
               {
                 amount: paidNow,
-                notes: "دفعة أولى عند الشراء",
+                notes: isGain
+                  ? "دفعة أولى مقبوضة عند البيع"
+                  : "دفعة أولى عند الشراء",
                 date: body.date ? new Date(body.date) : new Date(),
               },
             ]
@@ -203,21 +212,23 @@ export async function addStorageActionToItem(
 
       if (hasPaidNow) {
         await addTreasuryEntry({
-          type: "withdraw",
+          type: isGain ? "deposit" : "withdraw",
           source: "loan",
           amount: paidNow,
-          description: `دفعة أولى — شراء ${item.name} بالدين من ${loan.party}`,
+          description: isGain
+            ? `دفعة أولى — بيع ${item.name} بالدين إلى ${loan.party}`
+            : `دفعة أولى — شراء ${item.name} بالدين من ${loan.party}`,
           relatedLoan: loan._id.toString(),
           date: body.date ?? null,
         });
       }
     } else {
-      // Fully-paid purchase: the whole cost leaves the box now
+      // Fully settled now: the whole amount moves the box immediately
       await addTreasuryEntry({
-        type: "withdraw",
+        type: isGain ? "deposit" : "withdraw",
         source: "invoice",
         amount: body.cost,
-        description: `شراء ${item.name} — ${body.type}`,
+        description: `${isGain ? "بيع" : "شراء"} ${item.name} — ${body.type}`,
         relatedInvoice: invoice._id.toString(),
         date: body.date ?? null,
       });

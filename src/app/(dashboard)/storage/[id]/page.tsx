@@ -129,8 +129,9 @@ export default function StorageItemPage() {
       الموظف: a.employee?.fullName ?? "—",
       التاريخ: new Date(a.date).toLocaleDateString("en-GB"),
       الملاحظات: a.notes ?? "",
-      "التكلفة (USD)": a.cost?.USD ?? "",
-      "التكلفة (ل.س)": a.cost?.SP ?? "",
+      "نوع المبلغ": a.cost?.USD || a.cost?.SP ? (a.gain ? "مكسب" : "تكلفة") : "",
+      "المبلغ (USD)": a.cost?.USD ?? "",
+      "المبلغ (ل.س)": a.cost?.SP ?? "",
     }));
     downloadXLSX(rows, `حركات-${item.name}`);
   }
@@ -673,11 +674,11 @@ export default function StorageItemPage() {
                         <span
                           style={{
                             fontSize: 12,
-                            color: "#ef4444",
+                            color: action.gain ? "#22c55e" : "#ef4444",
                             fontWeight: 600,
                           }}
                         >
-                          ${action.cost.USD.toFixed(2)}
+                          {action.gain ? "+" : "-"}${action.cost.USD.toFixed(2)}
                         </span>
                       ) : null}
                     </div>

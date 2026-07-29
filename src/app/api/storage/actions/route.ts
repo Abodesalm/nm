@@ -103,6 +103,7 @@ export async function GET(req: NextRequest) {
                 quantity: "$actions.quantity",
                 notes: "$actions.notes",
                 cost: "$actions.cost",
+                gain: "$actions.gain",
                 date: "$actions.date",
                 goal_model: "$actions.goal_model",
                 goal_id: "$actions.goal_id",

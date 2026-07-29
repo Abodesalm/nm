@@ -19,6 +19,8 @@ export interface IStorageItem extends Document {
     goal_id?: mongoose.Types.ObjectId | null;
     notes?: string;
     cost?: { USD: number; SP: number; exchange: number } | null;
+    /** When cost is set: false = we paid (تكلفة), true = we were paid (مكسب) */
+    gain?: boolean;
     date: Date;
   }[];
 }
@@ -61,6 +63,7 @@ const StorageItemSchema = new Schema<IStorageItem>(
         goal_id: { type: Schema.Types.ObjectId, default: null },
         notes: String,
         cost: { type: Schema.Types.Mixed, default: null },
+        gain: { type: Boolean, default: false },
         date: { type: Date, default: Date.now },
       },
     ],

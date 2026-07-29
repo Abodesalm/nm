@@ -100,6 +100,7 @@ export function ActionDrawer({
   const [date, setDate] = useState(new Date().toISOString().split("T")[0]);
   const [showCost, setShowCost] = useState(false);
   const [cost, setCost] = useState({ USD: 0, SP: 0, exchange: 0 });
+  const [isGain, setIsGain] = useState(false);
   const [isLoan, setIsLoan] = useState(false);
   const [loanParty, setLoanParty] = useState("");
   const [paidNow, setPaidNow] = useState({ USD: 0, SP: 0, exchange: 0 });
@@ -139,6 +140,7 @@ export function ActionDrawer({
     const hasCost = viewAction.cost && (viewAction.cost.USD || viewAction.cost.SP);
     setShowCost(!!hasCost);
     setCost(hasCost ? viewAction.cost : { USD: 0, SP: 0, exchange: 0 });
+    setIsGain(!!viewAction.gain);
   }, [open, viewAction]);
 
   // Reset on close
@@ -154,6 +156,7 @@ export function ActionDrawer({
       setDate(new Date().toISOString().split("T")[0]);
       setShowCost(false);
       setCost({ USD: 0, SP: 0, exchange: 0 });
+      setIsGain(false);
       setIsLoan(false);
       setLoanParty("");
       setPaidNow({ USD: 0, SP: 0, exchange: 0 });
@@ -254,7 +257,11 @@ export function ActionDrawer({
       return;
     }
     if (showCost && isLoan && !loanParty.trim()) {
-      setError("اسم الجهة الدائنة مطلوب للشراء بالدين");
+      setError(
+        isGain
+          ? "اسم الجهة المدينة مطلوب للبيع بالدين"
+          : "اسم الجهة الدائنة مطلوب للشراء بالدين",
+      );
       return;
     }
     setSaving(true);
@@ -269,6 +276,7 @@ export function ActionDrawer({
       goal_model: INCREASING_TYPES.includes(actionType) ? null : goalModel || null,
       goal_id: INCREASING_TYPES.includes(actionType) ? null : selectedGoal?._id ?? null,
       cost: showCost ? cost : null,
+      gain: showCost ? isGain : false,
       loan:
         showCost && isLoan
           ? { enabled: true, party: loanParty, paidNow }
@@ -648,31 +656,79 @@ export function ActionDrawer({
           />
         </Field>
 
-        {/* Cost (optional) */}
+        {/* Cost or gain (optional) */}
         {readOnly ? (
           showCost && (
-            <Field label="التكلفة">
+            <Field label={isGain ? "المكسب" : "التكلفة"}>
               <ReadOnlyValue
                 label={`${(cost.SP ?? 0).toLocaleString("en")} ل.س ≈ $${cost.USD ?? 0}`}
+                color={isGain ? "#22c55e" : undefined}
               />
             </Field>
           )
         ) : showCost ? (
-          <Field label="التكلفة (اختياري)">
+          <Field label={isGain ? "المكسب (اختياري)" : "التكلفة (اختياري)"}>
+            {/* Cost vs gain toggle */}
+            <div
+              style={{
+                display: "grid",
+                gridTemplateColumns: "1fr 1fr",
+                gap: 8,
+                marginBottom: 10,
+              }}
+            >
+              {(
+                [
+                  { value: false, label: "تكلفة (دفعنا)", color: "#ef4444" },
+                  { value: true, label: "مكسب (قبضنا)", color: "#22c55e" },
+                ] as const
+              ).map((o) => (
+                <button
+                  key={String(o.value)}
+                  onClick={() => setIsGain(o.value)}
+                  style={{
+                    height: 36,
+                    borderRadius: 8,
+                    cursor: "pointer",
+                    border: `2px solid ${isGain === o.value ? o.color : "var(--border)"}`,
+                    background:
+                      isGain === o.value ? `${o.color}18` : "transparent",
+                    color: isGain === o.value ? o.color : "var(--text-muted)",
+                    fontSize: 13,
+                    fontFamily: "'Tajawal', sans-serif",
+                    fontWeight: isGain === o.value ? 600 : 400,
+                    transition: "all 0.15s",
+                  }}
+                >
+                  {o.label}
+                </button>
+              ))}
+            </div>
+
             <MoneyInput
               value={cost}
               onChange={setCost}
               defaultExchange={defaultExchange}
             />
 
-            {/* Buy on credit */}
+            {/* On credit */}
             <div
               style={{
                 marginTop: 10,
                 padding: "10px 12px",
                 borderRadius: 9,
-                background: isLoan ? "rgba(239,68,68,0.05)" : "var(--surface)",
-                border: `1px solid ${isLoan ? "rgba(239,68,68,0.25)" : "var(--border)"}`,
+                background: isLoan
+                  ? isGain
+                    ? "rgba(34,197,94,0.05)"
+                    : "rgba(239,68,68,0.05)"
+                  : "var(--surface)",
+                border: `1px solid ${
+                  isLoan
+                    ? isGain
+                      ? "rgba(34,197,94,0.25)"
+                      : "rgba(239,68,68,0.25)"
+                    : "var(--border)"
+                }`,
                 display: "flex",
                 flexDirection: "column",
                 gap: 10,
@@ -690,11 +746,15 @@ export function ActionDrawer({
                     style={{
                       fontSize: 13,
                       fontWeight: 600,
-                      color: isLoan ? "#ef4444" : "var(--text)",
+                      color: isLoan
+                        ? isGain
+                          ? "#22c55e"
+                          : "#ef4444"
+                        : "var(--text)",
                       fontFamily: "'Tajawal', sans-serif",
                     }}
                   >
-                    شراء بالدين
+                    {isGain ? "بيع بالدين" : "شراء بالدين"}
                   </p>
                   <p
                     style={{
@@ -703,7 +763,9 @@ export function ActionDrawer({
                       marginTop: 2,
                     }}
                   >
-                    التكلفة تبقى ديناً علينا — يُسجل في قسم المالية
+                    {isGain
+                      ? "المبلغ يبقى ديناً لنا — يُسجل في قسم المالية"
+                      : "التكلفة تبقى ديناً علينا — يُسجل في قسم المالية"}
                   </p>
                 </div>
                 <button
@@ -712,7 +774,11 @@ export function ActionDrawer({
                     width: 44,
                     height: 24,
                     borderRadius: 99,
-                    background: isLoan ? "#ef4444" : "var(--border)",
+                    background: isLoan
+                      ? isGain
+                        ? "#22c55e"
+                        : "#ef4444"
+                      : "var(--border)",
                     border: "none",
                     cursor: "pointer",
                     position: "relative",
@@ -749,7 +815,7 @@ export function ActionDrawer({
                         fontFamily: "'Cairo', sans-serif",
                       }}
                     >
-                      الجهة الدائنة (المورّد)
+                      {isGain ? "الجهة المدينة (الزبون)" : "الجهة الدائنة (المورّد)"}
                     </label>
                     <input
                       style={inputStyle}
@@ -773,7 +839,9 @@ export function ActionDrawer({
                         fontFamily: "'Cairo', sans-serif",
                       }}
                     >
-                      المبلغ المدفوع الآن (اختياري — الباقي دين)
+                      {isGain
+                        ? "المبلغ المقبوض الآن (اختياري — الباقي دين)"
+                        : "المبلغ المدفوع الآن (اختياري — الباقي دين)"}
                     </label>
                     <MoneyInput
                       value={paidNow}
@@ -789,6 +857,7 @@ export function ActionDrawer({
               onClick={() => {
                 setShowCost(false);
                 setCost({ USD: 0, SP: 0, exchange: 0 });
+                setIsGain(false);
                 setIsLoan(false);
                 setLoanParty("");
                 setPaidNow({ USD: 0, SP: 0, exchange: 0 });
@@ -805,7 +874,7 @@ export function ActionDrawer({
                 padding: 0,
               }}
             >
-              × إزالة التكلفة
+              × إزالة التكلفة أو المكسب
             </button>
           </Field>
         ) : (
@@ -822,7 +891,7 @@ export function ActionDrawer({
               padding: 0,
             }}
           >
-            + إضافة تكلفة
+            + إضافة تكلفة أو مكسب
           </button>
         )}
 
@@ -886,7 +955,7 @@ export function ActionDrawer({
 }
 
 /** Non-editable value display used by the read-only mini profile */
-function ReadOnlyValue({ label }: { label: string }) {
+function ReadOnlyValue({ label, color }: { label: string; color?: string }) {
   return (
     <div
       style={{
@@ -898,7 +967,8 @@ function ReadOnlyValue({ label }: { label: string }) {
         border: "1px solid var(--border)",
         background: "var(--surface)",
         fontSize: 13.5,
-        color: "var(--text)",
+        color: color ?? "var(--text)",
+        fontWeight: color ? 600 : 400,
         fontFamily: "'Tajawal', sans-serif",
       }}
     >
