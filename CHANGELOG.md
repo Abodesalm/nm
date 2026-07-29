@@ -3,6 +3,23 @@
 > Appended to at the end of every session. Read at the start of every session.
 > Format per entry: date, what changed, files touched, next.
 
+## 2026-07-23 — Global storage actions log (سجل حركات المخزون)
+
+**What changed:**
+- **New cross-item actions log** at `/storage/actions`: every action across every storage item in one filterable table (item, employee, quantity range, date range OR specific month, action type — with دخل/خرج group presets plus individual type chips). Row click opens the same read-only mini-profile used on the item page; a delete button removes the action.
+- **"إضافة حركة" from the log adds an action to any item** — `ActionDrawer` gained a `mode="global"` that shows an item search-picker before the usual fields and posts to the new endpoint instead of a fixed item's route.
+- **Deleting from the log is byte-identical to deleting from the item profile** — both now call the same shared functions, so the item's quantity/status revert, point-equipment sync reverses, the linked invoice/loan/treasury entries cascade-delete, and the same `action_deleted` History entry is written either way. Verified live: added an action via the global endpoint → quantity +7; deleted it via the global endpoint → quantity back to original, History shows `action_deleted`, action gone from the list.
+- **Two new header buttons on the storage page**, دخل (green) and خرج (red), each linking to `/storage/actions` pre-filtered by the matching type group (`stock_in`+`return` vs `stock_out`/`consume`/`usage`/`borrow`/`custody`).
+- Refactored the add/delete logic out of `api/storage/[id]/actions/route.ts` into `src/lib/storageActions.ts` (`addStorageActionToItem`, `deleteStorageActionFromItem`, `ApiError`) — the per-item route is now a thin wrapper, and the new global route (`api/storage/actions`) reuses the same functions. The global GET uses a `$unwind` aggregation over `StorageItem.actions` (actions have no separate collection) with an `employees` `$lookup` for the employee column.
+
+**Files touched:**
+- New: `src/lib/storageActions.ts`, `src/app/api/storage/actions/route.ts`, `src/app/(dashboard)/storage/actions/page.tsx`.
+- Updated: `api/storage/[id]/actions/route.ts` (thin wrapper), `components/storage/ActionDrawer.tsx` (`mode`/global item picker), `app/(dashboard)/storage/page.tsx` (دخل/خرج buttons).
+
+**Verification:** `npx tsc --noEmit` clean; `npm run build` succeeds (`/storage/actions` compiles). End-to-end against the running production server: add via global endpoint, filter by item/type-group/quantity, delete via global endpoint with quantity reversal + History entry confirmed, all pages 200 after login. One bug caught and fixed during verification: `$unwind`'s option is `preserveNullAndEmptyArrays` (plural) — a singular typo made the aggregation 500 until corrected.
+
+**Next:** none outstanding for this feature.
+
 ## 2026-07-22 — Terminology (علبة / دخل-خرج / تفقد العمل), treasury movements → invoices, unified absences, NEXTAUTH_URL fix
 
 **What changed:**

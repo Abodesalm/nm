@@ -9,10 +9,13 @@ interface Props {
   open: boolean;
   onClose: () => void;
   onSaved: () => void;
-  item: any;
+  /** Required in "single" mode; optional in "global" mode (chosen via the item picker) */
+  item?: any;
   defaultExchange?: number;
   /** When set, the drawer becomes a read-only "mini profile" of this action */
   viewAction?: any | null;
+  /** "global" adds an item picker and posts to the cross-item actions log endpoint */
+  mode?: "single" | "global";
 }
 
 const ACTION_TYPES = [
@@ -79,8 +82,13 @@ export function ActionDrawer({
   item,
   defaultExchange = 0,
   viewAction = null,
+  mode = "single",
 }: Props) {
   const readOnly = !!viewAction;
+  const isGlobal = mode === "global";
+  const [globalItem, setGlobalItem] = useState<any>(null);
+  const [itemSearch, setItemSearch] = useState("");
+  const [itemResults, setItemResults] = useState<any[]>([]);
   const [actionType, setActionType] = useState("stock_in");
   const [quantity, setQuantity] = useState("");
   const [allEmployees, setAllEmployees] = useState<any[]>([]);
@@ -154,8 +162,28 @@ export function ActionDrawer({
       setPointSearch("");
       setGoalSearch("");
       setGoalResults([]);
+      setGlobalItem(null);
+      setItemSearch("");
+      setItemResults([]);
     }
   }, [open]);
+
+  // Global mode: live search for the target item
+  useEffect(() => {
+    if (readOnly || !isGlobal) return;
+    if (itemSearch.trim().length < 2) {
+      setItemResults([]);
+      return;
+    }
+    const timer = setTimeout(async () => {
+      const res = await fetch(
+        `/api/storage?search=${encodeURIComponent(itemSearch)}&limit=8`,
+      );
+      const json = await res.json();
+      setItemResults(json.data?.items ?? []);
+    }, 300);
+    return () => clearTimeout(timer);
+  }, [itemSearch, isGlobal, readOnly]);
 
   // Load all points when goal = "points"
   useEffect(() => {
@@ -216,6 +244,11 @@ export function ActionDrawer({
   });
 
   async function handleSave() {
+    const targetItemId = isGlobal ? globalItem?._id : item?._id;
+    if (isGlobal && !targetItemId) {
+      setError("اختر عنصراً من المستودع");
+      return;
+    }
     if (!quantity || Number(quantity) <= 0) {
       setError("الكمية مطلوبة وأكبر من صفر");
       return;
@@ -242,7 +275,12 @@ export function ActionDrawer({
           : null,
     };
 
-    const res = await fetch(`/api/storage/${item._id}/actions`, {
+    const url = isGlobal
+      ? "/api/storage/actions"
+      : `/api/storage/${item._id}/actions`;
+    if (isGlobal) body.storageItem = targetItemId;
+
+    const res = await fetch(url, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(body),
@@ -265,11 +303,46 @@ export function ActionDrawer({
       title={
         readOnly
           ? `تفاصيل الحركة — ${item?.name}`
-          : `إضافة حركة — ${item?.name}`
+          : isGlobal
+            ? globalItem
+              ? `إضافة حركة — ${globalItem.name}`
+              : "إضافة حركة"
+            : `إضافة حركة — ${item?.name}`
       }
       width={480}
     >
       <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
+        {/* Item picker — global mode only */}
+        {isGlobal && !readOnly && (
+          <Field label="العنصر">
+            <SearchPicker
+              selected={globalItem}
+              displayKey={(it) => it.name}
+              onClear={() => {
+                setGlobalItem(null);
+                setItemSearch("");
+              }}
+              search={itemSearch}
+              onSearchChange={setItemSearch}
+              results={itemResults}
+              onSelect={(it) => {
+                setGlobalItem(it);
+                setItemSearch("");
+                setItemResults([]);
+              }}
+              resultLabel={(it) => (
+                <>
+                  {it.name}{" "}
+                  <span style={{ color: "var(--text-muted)", fontSize: 12 }}>
+                    ({it.category})
+                  </span>
+                </>
+              )}
+              placeholder="ابحث عن عنصر..."
+            />
+          </Field>
+        )}
+
         {/* Action type */}
         <Field label="نوع الحركة">
           <div

@@ -1,12 +1,17 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { Plus, Search, Eye, EyeOff } from "lucide-react";
+import { useRouter } from "next/navigation";
+import { Plus, Search, Eye, EyeOff, ArrowDownToLine, ArrowUpFromLine } from "lucide-react";
 import { StorageTable } from "@/components/storage/StorageTable";
 import { StorageDrawer } from "@/components/storage/StorageDrawer";
 import { ActionDrawer } from "@/components/storage/ActionDrawer";
 
+const INCREASING_TYPES = ["stock_in", "return"];
+const DECREASING_TYPES = ["stock_out", "consume", "usage", "borrow", "custody"];
+
 export default function StoragePage() {
+  const router = useRouter();
   const [defaultExchange, setDefaultExchange] = useState(15000);
   const [categories, setCategories] = useState<string[]>([]);
   const [search, setSearch] = useState("");
@@ -62,27 +67,73 @@ export default function StoragePage() {
             إدارة المخزون والحركات
           </p>
         </div>
-        <button
-          onClick={() => setAddDrawer(true)}
-          style={{
-            display: "flex",
-            alignItems: "center",
-            gap: 7,
-            height: 40,
-            padding: "0 18px",
-            borderRadius: 9,
-            border: "none",
-            background: "#f97316",
-            color: "#fff",
-            fontSize: 14,
-            fontFamily: "'Tajawal', sans-serif",
-            fontWeight: 600,
-            cursor: "pointer",
-            boxShadow: "0 4px 12px rgba(249,115,22,0.3)",
-          }}
-        >
-          <Plus size={16} /> إضافة عنصر
-        </button>
+        <div style={{ display: "flex", gap: 8 }}>
+          <button
+            onClick={() =>
+              router.push(`/storage/actions?types=${INCREASING_TYPES.join(",")}`)
+            }
+            style={{
+              display: "flex",
+              alignItems: "center",
+              gap: 7,
+              height: 40,
+              padding: "0 16px",
+              borderRadius: 9,
+              border: "1px solid rgba(34,197,94,0.35)",
+              background: "rgba(34,197,94,0.08)",
+              color: "#22c55e",
+              fontSize: 14,
+              fontFamily: "'Tajawal', sans-serif",
+              fontWeight: 600,
+              cursor: "pointer",
+            }}
+          >
+            <ArrowDownToLine size={16} /> دخل
+          </button>
+          <button
+            onClick={() =>
+              router.push(`/storage/actions?types=${DECREASING_TYPES.join(",")}`)
+            }
+            style={{
+              display: "flex",
+              alignItems: "center",
+              gap: 7,
+              height: 40,
+              padding: "0 16px",
+              borderRadius: 9,
+              border: "1px solid rgba(239,68,68,0.35)",
+              background: "rgba(239,68,68,0.08)",
+              color: "#ef4444",
+              fontSize: 14,
+              fontFamily: "'Tajawal', sans-serif",
+              fontWeight: 600,
+              cursor: "pointer",
+            }}
+          >
+            <ArrowUpFromLine size={16} /> خرج
+          </button>
+          <button
+            onClick={() => setAddDrawer(true)}
+            style={{
+              display: "flex",
+              alignItems: "center",
+              gap: 7,
+              height: 40,
+              padding: "0 18px",
+              borderRadius: 9,
+              border: "none",
+              background: "#f97316",
+              color: "#fff",
+              fontSize: 14,
+              fontFamily: "'Tajawal', sans-serif",
+              fontWeight: 600,
+              cursor: "pointer",
+              boxShadow: "0 4px 12px rgba(249,115,22,0.3)",
+            }}
+          >
+            <Plus size={16} /> إضافة عنصر
+          </button>
+        </div>
       </div>
 
       {/* Filters */}
