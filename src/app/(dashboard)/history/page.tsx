@@ -3,7 +3,6 @@
 import { useState, useEffect, useRef } from "react";
 import {
   Search,
-  Trash2,
   ChevronDown,
   ChevronUp,
   X,
@@ -11,7 +10,6 @@ import {
   FileDown,
 } from "lucide-react";
 import { downloadXLSX } from "@/lib/exportXLSX";
-import { ConfirmDialog } from "@/components/shared/ConfirmDialog";
 import { Pagination } from "@/components/shared/Pagination";
 import { PageSpinner } from "@/components/shared/Spinner";
 import { useSearchParams } from "next/navigation";
@@ -195,6 +193,7 @@ const TYPE_LABELS: Record<string, string> = {
   borrow: "استعارة",
   custody: "أمانة",
   return: "إرجاع",
+  other: "أخرى",
   item_added: "إضافة عنصر",
   item_edited: "تعديل عنصر",
   item_hidden: "إخفاء عنصر",
@@ -255,7 +254,6 @@ export default function HistoryPage() {
   const [filterType, setFilterType] = useState("");
   const [dateFrom, setDateFrom] = useState("");
   const [dateTo, setDateTo] = useState("");
-  const [confirmDelete, setConfirmDelete] = useState<string | null>(null);
 
   const [allEmployees, setAllEmployees] = useState<any[]>([]);
   const [empSearch, setEmpSearch] = useState("");
@@ -340,16 +338,6 @@ export default function HistoryPage() {
     setLogs(json.data?.logs ?? []);
     setTotal(json.data?.total ?? 0);
     setLoading(false);
-  }
-
-  async function handleDelete(id: string) {
-    await fetch("/api/history", {
-      method: "DELETE",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ id }),
-    });
-    setConfirmDelete(null);
-    fetchLogs();
   }
 
   async function handleExportHistory() {
@@ -745,16 +733,13 @@ export default function HistoryPage() {
                         {col.label}
                       </th>
                     ))}
-                    <th
-                      style={{ ...thStyle, textAlign: "center", width: 48 }}
-                    ></th>
                   </tr>
                 </thead>
                 <tbody>
                   {logs.length === 0 ? (
                     <tr>
                       <td
-                        colSpan={visibleCols.length + 1}
+                        colSpan={visibleCols.length}
                         style={{
                           ...tdStyle,
                           textAlign: "center",
@@ -893,35 +878,6 @@ export default function HistoryPage() {
                             )}
                           </td>
                         ))}
-
-                        {/* Delete */}
-                        <td style={{ ...tdStyle, textAlign: "center" }}>
-                          <button
-                            onClick={() => setConfirmDelete(log._id)}
-                            style={{
-                              width: 28,
-                              height: 28,
-                              borderRadius: 7,
-                              border: "none",
-                              background: "transparent",
-                              color: "#ef4444",
-                              cursor: "pointer",
-                              display: "flex",
-                              alignItems: "center",
-                              justifyContent: "center",
-                              margin: "0 auto",
-                            }}
-                            onMouseEnter={(e) =>
-                              (e.currentTarget.style.background =
-                                "rgba(239,68,68,0.08)")
-                            }
-                            onMouseLeave={(e) =>
-                              (e.currentTarget.style.background = "transparent")
-                            }
-                          >
-                            <Trash2 size={13} />
-                          </button>
-                        </td>
                       </tr>
                     ))
                   )}
@@ -949,16 +905,6 @@ export default function HistoryPage() {
           </>
         )}
       </div>
-
-      {confirmDelete && (
-        <ConfirmDialog
-          title="حذف السجل"
-          message="هل أنت متأكد من حذف هذا السجل؟ سيتم حذف البيانات المرتبطة به أيضاً (راتب، سلفة، حركة مخزون...)."
-          confirmLabel="حذف"
-          onConfirm={() => handleDelete(confirmDelete)}
-          onCancel={() => setConfirmDelete(null)}
-        />
-      )}
     </div>
   );
 }

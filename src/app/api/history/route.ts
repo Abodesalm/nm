@@ -1,11 +1,10 @@
 import { NextRequest } from "next/server";
 import { connectDB } from "@/lib/db/mongoose";
 import History from "@/lib/db/models/History";
-import Employee from "@/lib/db/models/Employee";
-import StorageItem from "@/lib/db/models/StorageItem";
-import Point from "@/lib/db/models/Point";
-import Invoice from "@/lib/db/models/Invoice";
 // Import all models so Mongoose registers them before populate
+import "@/lib/db/models/Employee";
+import "@/lib/db/models/StorageItem";
+import "@/lib/db/models/Point";
 import "@/lib/db/models/Customer";
 import { permissionGuard, ok, err } from "@/lib/api-factory";
 
@@ -51,82 +50,7 @@ export async function GET(req: NextRequest) {
   }
 }
 
-export async function DELETE(req: NextRequest) {
-  const denied = await permissionGuard("history", "full", "delete");
-  if (denied) return denied;
-  try {
-    await connectDB();
-    const { id } = await req.json();
-
-    const log = await History.findById(id);
-    if (!log) return err("السجل غير موجود", 404);
-
-    if (log.type === "salary_added" && log.employee && log.relatedId) {
-      await Employee.findByIdAndUpdate(log.employee, {
-        $pull: { salaries: { _id: log.relatedId } },
-      });
-      await Invoice.deleteOne({ relatedId: log.relatedId });
-    }
-
-    if (log.type === "loan_added" && log.employee && log.relatedId) {
-      await Employee.findByIdAndUpdate(log.employee, {
-        $pull: { loans: { _id: log.relatedId } },
-      });
-    }
-
-    if (
-      ["stock_in", "stock_out", "consume", "borrow", "return"].includes(
-        log.type,
-      ) &&
-      log.item &&
-      log.relatedId
-    ) {
-      const item = await StorageItem.findById(log.item);
-      if (item) {
-        // Find the action before removing (need goal info for point sync)
-        const action = item.actions.find(
-          (a: any) => a._id.toString() === log.relatedId.toString(),
-        );
-
-        item.actions = item.actions.filter(
-          (a: any) => a._id.toString() !== log.relatedId.toString(),
-        );
-        let current = 0, borrowed = 0;
-        for (const a of item.actions) {
-          if (a.type === "stock_in" || a.type === "return") current += a.quantity;
-          if (a.type === "stock_out" || a.type === "consume" || a.type === "borrow") current -= a.quantity;
-          if (a.type === "borrow") borrowed += a.quantity;
-          if (a.type === "return") borrowed -= a.quantity;
-        }
-        item.currentQuantity = Math.max(0, current);
-        item.borrowedQuantity = Math.max(0, borrowed);
-        item.status =
-          item.currentQuantity === 0
-            ? "out-of-stock"
-            : item.currentQuantity <= item.minQuantity
-              ? "low-stock"
-              : "in-stock";
-        await item.save();
-
-        // Reverse point equipment sync if this action targeted a point
-        if (action?.goal_model === "points" && action?.goal_id) {
-          await Point.updateOne(
-            { _id: action.goal_id, "equipment.itemId": log.item },
-            { $inc: { "equipment.$.quantity": -action.quantity } },
-          );
-          await Point.updateOne(
-            { _id: action.goal_id },
-            { $pull: { equipment: { quantity: { $lte: 0 } } } },
-          );
-        }
-
-        await Invoice.deleteOne({ relatedId: log.relatedId });
-      }
-    }
-
-    await History.findByIdAndDelete(id);
-    return ok({ deleted: true });
-  } catch (e: any) {
-    return err(e.message, 500);
-  }
-}
+// History is a read-only audit trail — logs are never deletable. Deleting
+// the SOURCE record (a salary, a storage action, ...) still cascades its own
+// log entry via that record's own delete route; there is no manual "delete
+// log" feature here on purpose.

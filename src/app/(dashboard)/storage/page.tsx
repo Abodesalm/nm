@@ -2,16 +2,27 @@
 
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
+import { useSession } from "next-auth/react";
 import { Plus, Search, Eye, EyeOff, ArrowDownToLine, ArrowUpFromLine } from "lucide-react";
 import { StorageTable } from "@/components/storage/StorageTable";
 import { StorageDrawer } from "@/components/storage/StorageDrawer";
 import { ActionDrawer } from "@/components/storage/ActionDrawer";
 
-const INCREASING_TYPES = ["stock_in", "return"];
-const DECREASING_TYPES = ["stock_out", "consume", "usage", "borrow", "custody"];
-
 export default function StoragePage() {
   const router = useRouter();
+  const { data: session } = useSession();
+  const user = session?.user as any;
+
+  // دخل/خرج each need their own permission — hide the button (not just
+  // reject the page) when a user has been explicitly denied one.
+  function hasStorageAction(actionKey: string) {
+    if (user?.isSuperAdmin) return true;
+    const perm = user?.permissions?.find((p: any) => p.section === "storage");
+    if (!perm || perm.permission === "none") return false;
+    return perm.actions?.[actionKey] !== false;
+  }
+  const canIncome = hasStorageAction("income_access");
+  const canOutcome = hasStorageAction("outcome_access");
   const [defaultExchange, setDefaultExchange] = useState(15000);
   const [categories, setCategories] = useState<string[]>([]);
   const [search, setSearch] = useState("");
@@ -68,50 +79,50 @@ export default function StoragePage() {
           </p>
         </div>
         <div style={{ display: "flex", gap: 8 }}>
-          <button
-            onClick={() =>
-              router.push(`/storage/actions?types=${INCREASING_TYPES.join(",")}`)
-            }
-            style={{
-              display: "flex",
-              alignItems: "center",
-              gap: 7,
-              height: 40,
-              padding: "0 16px",
-              borderRadius: 9,
-              border: "1px solid rgba(34,197,94,0.35)",
-              background: "rgba(34,197,94,0.08)",
-              color: "#22c55e",
-              fontSize: 14,
-              fontFamily: "'Tajawal', sans-serif",
-              fontWeight: 600,
-              cursor: "pointer",
-            }}
-          >
-            <ArrowDownToLine size={16} /> دخل
-          </button>
-          <button
-            onClick={() =>
-              router.push(`/storage/actions?types=${DECREASING_TYPES.join(",")}`)
-            }
-            style={{
-              display: "flex",
-              alignItems: "center",
-              gap: 7,
-              height: 40,
-              padding: "0 16px",
-              borderRadius: 9,
-              border: "1px solid rgba(239,68,68,0.35)",
-              background: "rgba(239,68,68,0.08)",
-              color: "#ef4444",
-              fontSize: 14,
-              fontFamily: "'Tajawal', sans-serif",
-              fontWeight: 600,
-              cursor: "pointer",
-            }}
-          >
-            <ArrowUpFromLine size={16} /> خرج
-          </button>
+          {canIncome && (
+            <button
+              onClick={() => router.push("/storage/actions?direction=in")}
+              style={{
+                display: "flex",
+                alignItems: "center",
+                gap: 7,
+                height: 40,
+                padding: "0 16px",
+                borderRadius: 9,
+                border: "1px solid rgba(34,197,94,0.35)",
+                background: "rgba(34,197,94,0.08)",
+                color: "#22c55e",
+                fontSize: 14,
+                fontFamily: "'Tajawal', sans-serif",
+                fontWeight: 600,
+                cursor: "pointer",
+              }}
+            >
+              <ArrowDownToLine size={16} /> دخل
+            </button>
+          )}
+          {canOutcome && (
+            <button
+              onClick={() => router.push("/storage/actions?direction=out")}
+              style={{
+                display: "flex",
+                alignItems: "center",
+                gap: 7,
+                height: 40,
+                padding: "0 16px",
+                borderRadius: 9,
+                border: "1px solid rgba(239,68,68,0.35)",
+                background: "rgba(239,68,68,0.08)",
+                color: "#ef4444",
+                fontSize: 14,
+                fontFamily: "'Tajawal', sans-serif",
+                fontWeight: 600,
+                cursor: "pointer",
+              }}
+            >
+              <ArrowUpFromLine size={16} /> خرج
+            </button>
+          )}
           <button
             onClick={() => setAddDrawer(true)}
             style={{

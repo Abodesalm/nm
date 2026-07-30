@@ -3,6 +3,23 @@
 > Appended to at the end of every session. Read at the start of every session.
 > Format per entry: date, what changed, files touched, next.
 
+## 2026-07-24 — Isolate دخل/خرج pages, أخرى action type, per-direction permissions, History is read-only
+
+**What changed:**
+- **دخل and خرج are now fully isolated**, not just pre-filtered. `/storage/actions` accepts `?direction=in|out`; when set, the page is hard-locked to that direction: the cross-direction دخل/خرج/الكل presets disappear (only same-direction type chips + أخرى remain), the "إضافة حركة" form only offers that direction's own types, and the server independently enforces the same boundary — even a spoofed `types` query param or a tampered request body can't surface or create the other direction's data. Verified live: POSTing a خرج type while `direction=in` (and vice versa) is rejected with "نوع الحركة غير مسموح في هذه الصفحة"; GET with `direction=in&types=stock_out` returns zero rows.
+- **New action type "أخرى"** (`StorageItem.actions[].type`) for movements that don't fit the fixed types. It has no inherent direction — a new `flowDirection` field (`"in"|"out"`) records which locked page created it, and the server derives (never trusts) this from the page's own `direction`, rejecting `type: "other"` outright if no direction context exists. Only reachable from the دخل/خرج pages — never shown in the item profile's or the neutral overview's type picker (though pre-existing "other" actions still display correctly everywhere, colored green/red with a ±sign matching their flowDirection, mirroring the existing gain/cost convention).
+- **Two new permissions**, `income_access` (دخل) and `outcome_access` (خرج), under storage. Each independently gates its whole page — view, add, and delete — both server-side (`permissionGuard` action-override) and client-side (the دخل/خرج buttons on the storage page hide themselves when a user has been explicitly denied one).
+- **History (السجل) is now fully read-only.** Removed its `DELETE` route entirely (confirmed 405), the per-row delete button, and the `delete` permission key — logs can never be manually removed, only ever created via cascades from their source records. (Its cascade logic was stale anyway — it predated `usage`/`custody`/`gain`/loan handling, all of which now lives correctly in `storageActions.ts`.) This does NOT affect the storage actions log's own delete-a-movement feature, which is a distinct, intentional inventory-correction tool.
+
+**Files touched:**
+- Model: `StorageItem.ts` (+`other` type, +`flowDirection`), `types/index.ts` mirror.
+- Server: `lib/storageActions.ts` (`isIncreasingAction`, direction enforcement in add/delete), `lib/permissions.ts` (+2 storage actions, −1 history action), `api/storage/actions/route.ts` (direction param, permission gating, `$and`-based isolation in the aggregation, project `flowDirection`), `api/history/route.ts` (DELETE removed).
+- Client: `components/storage/ActionDrawer.tsx` (`restrictDirection` prop, filtered type list + أخرى, direction-aware destination-lock logic), `storage/actions/page.tsx` (direction lock, forbidden-state banner, أخرى chip/display), `storage/page.tsx` (`?direction=` links, permission-based button visibility), `storage/[id]/page.tsx` + `history/page.tsx` (أخرى label + colored sign), `history/page.tsx` (delete UI removed).
+
+**Verification:** `npx tsc --noEmit` clean; `npm run build` succeeds. Extensive live testing against the running server: cross-direction POST/GET rejected in both directions, أخرى succeeds only with a direction and persists the correct flowDirection, DELETE rejects a direction mismatch (403) and succeeds for the matching direction with correct quantity reversal (test data fully cleaned up, item quantity returned to its original value), History's DELETE confirmed gone (405).
+
+**Not independently live-tested:** the `income_access`/`outcome_access` denial path from a non-superadmin account — verification used the superadmin session, which bypasses all permission checks by design. The logic mirrors the already-proven `action_add`/`action_delete` action-override pattern exactly, but a real denial hasn't been observed end-to-end.
+
 ## 2026-07-23 (3) — Storage action cost can flip to a gain (تكلفة أو مكسب)
 
 **What changed:**

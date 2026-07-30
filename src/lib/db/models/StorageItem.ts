@@ -12,7 +12,7 @@ export interface IStorageItem extends Document {
   borrowedQuantity: number;
   actions: {
     _id: mongoose.Types.ObjectId;
-    type: "stock_in" | "stock_out" | "consume" | "usage" | "borrow" | "custody" | "return";
+    type: "stock_in" | "stock_out" | "consume" | "usage" | "borrow" | "custody" | "return" | "other";
     quantity: number;
     employee?: mongoose.Types.ObjectId;
     goal_model?: "customers" | "points" | "employees" | null;
@@ -21,6 +21,8 @@ export interface IStorageItem extends Document {
     cost?: { USD: number; SP: number; exchange: number } | null;
     /** When cost is set: false = we paid (تكلفة), true = we were paid (مكسب) */
     gain?: boolean;
+    /** Only meaningful when type is "other" — which of the دخل/خرج pages created it */
+    flowDirection?: "in" | "out" | null;
     date: Date;
   }[];
 }
@@ -50,7 +52,7 @@ const StorageItemSchema = new Schema<IStorageItem>(
       {
         type: {
           type: String,
-          enum: ["stock_in", "stock_out", "consume", "usage", "borrow", "custody", "return"],
+          enum: ["stock_in", "stock_out", "consume", "usage", "borrow", "custody", "return", "other"],
           required: true,
         },
         quantity: { type: Number, required: true },
@@ -64,6 +66,7 @@ const StorageItemSchema = new Schema<IStorageItem>(
         notes: String,
         cost: { type: Schema.Types.Mixed, default: null },
         gain: { type: Boolean, default: false },
+        flowDirection: { type: String, enum: ["in", "out", null], default: null },
         date: { type: Date, default: Date.now },
       },
     ],

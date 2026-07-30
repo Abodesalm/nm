@@ -16,6 +16,8 @@ interface Props {
   viewAction?: any | null;
   /** "global" adds an item picker and posts to the cross-item actions log endpoint */
   mode?: "single" | "global";
+  /** Locks the drawer to only the دخل ("in") or خرج ("out") page's own types, plus "أخرى" */
+  restrictDirection?: "in" | "out";
 }
 
 const ACTION_TYPES = [
@@ -28,8 +30,25 @@ const ACTION_TYPES = [
   { value: "return", label: "إرجاع", color: "#8b5cf6" },
 ];
 
+/** "أخرى" only exists within a دخل/خرج-locked drawer — its direction comes from the page, never chosen freely */
+const OTHER_TYPE_META = { value: "other", label: "أخرى", color: "#64748b" };
+
 /** Types that flow INTO the warehouse — destination is always المستودع */
 const INCREASING_TYPES = ["stock_in", "return"];
+const DECREASING_TYPES = ["stock_out", "consume", "usage", "borrow", "custody"];
+
+/**
+ * "أخرى" has no inherent direction (unlike every other type) — it's resolved
+ * from context: the page lock while adding, or the action's own persisted
+ * flowDirection while viewing.
+ */
+function isIncreasingType(
+  type: string,
+  contextDirection?: "in" | "out" | null,
+) {
+  if (type === "other") return contextDirection === "in";
+  return INCREASING_TYPES.includes(type);
+}
 
 const GOAL_MODELS = [
   { value: "employees", label: "موظف" },
@@ -83,13 +102,30 @@ export function ActionDrawer({
   defaultExchange = 0,
   viewAction = null,
   mode = "single",
+  restrictDirection,
 }: Props) {
   const readOnly = !!viewAction;
   const isGlobal = mode === "global";
+
+  // "أخرى" shows when the drawer is locked to a direction (add flow), or when
+  // viewing a pre-existing "other" action (so its mini-profile still renders it).
+  const showOtherType =
+    !!restrictDirection || (readOnly && viewAction?.type === "other");
+  const baseTypes = restrictDirection
+    ? ACTION_TYPES.filter((t) =>
+        (restrictDirection === "in" ? INCREASING_TYPES : DECREASING_TYPES).includes(
+          t.value,
+        ),
+      )
+    : ACTION_TYPES;
+  const visibleTypes = showOtherType ? [...baseTypes, OTHER_TYPE_META] : baseTypes;
+
   const [globalItem, setGlobalItem] = useState<any>(null);
   const [itemSearch, setItemSearch] = useState("");
   const [itemResults, setItemResults] = useState<any[]>([]);
-  const [actionType, setActionType] = useState("stock_in");
+  const [actionType, setActionType] = useState(
+    restrictDirection === "out" ? "stock_out" : "stock_in",
+  );
   const [quantity, setQuantity] = useState("");
   const [allEmployees, setAllEmployees] = useState<any[]>([]);
   const [employeeSearch, setEmployeeSearch] = useState("");
@@ -106,6 +142,14 @@ export function ActionDrawer({
   const [paidNow, setPaidNow] = useState({ USD: 0, SP: 0, exchange: 0 });
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
+
+  // Direction context for the currently selected/viewed type: while viewing,
+  // an "other" action's direction is its own persisted flowDirection; while
+  // adding, it's the page lock (restrictDirection).
+  const contextDirection = readOnly
+    ? (viewAction?.flowDirection ?? null)
+    : (restrictDirection ?? null);
+  const isIncreasingSelection = isIncreasingType(actionType, contextDirection);
 
   // For points: load all and filter client-side
   const [allPoints, setAllPoints] = useState<any[]>([]);
@@ -146,7 +190,7 @@ export function ActionDrawer({
   // Reset on close
   useEffect(() => {
     if (!open) {
-      setActionType("stock_in");
+      setActionType(restrictDirection === "out" ? "stock_out" : "stock_in");
       setQuantity("");
       setEmployeeSearch("");
       setSelectedEmployee(null);
@@ -169,7 +213,7 @@ export function ActionDrawer({
       setItemSearch("");
       setItemResults([]);
     }
-  }, [open]);
+  }, [open, restrictDirection]);
 
   // Global mode: live search for the target item
   useEffect(() => {
@@ -273,8 +317,8 @@ export function ActionDrawer({
       notes,
       date,
       employee: selectedEmployee?._id ?? null,
-      goal_model: INCREASING_TYPES.includes(actionType) ? null : goalModel || null,
-      goal_id: INCREASING_TYPES.includes(actionType) ? null : selectedGoal?._id ?? null,
+      goal_model: isIncreasingSelection ? null : goalModel || null,
+      goal_id: isIncreasingSelection ? null : selectedGoal?._id ?? null,
       cost: showCost ? cost : null,
       gain: showCost ? isGain : false,
       loan:
@@ -286,7 +330,10 @@ export function ActionDrawer({
     const url = isGlobal
       ? "/api/storage/actions"
       : `/api/storage/${item._id}/actions`;
-    if (isGlobal) body.storageItem = targetItemId;
+    if (isGlobal) {
+      body.storageItem = targetItemId;
+      if (restrictDirection) body.direction = restrictDirection;
+    }
 
     const res = await fetch(url, {
       method: "POST",
@@ -356,14 +403,14 @@ export function ActionDrawer({
           <div
             style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8 }}
           >
-            {ACTION_TYPES.map((t) => (
+            {visibleTypes.map((t) => (
               <button
                 key={t.value}
                 disabled={readOnly}
                 onClick={() => {
                   if (readOnly) return;
                   setActionType(t.value);
-                  if (INCREASING_TYPES.includes(t.value)) {
+                  if (isIncreasingType(t.value, restrictDirection ?? null)) {
                     setGoalModel("");
                     setSelectedGoal(null);
                   }
@@ -457,7 +504,7 @@ export function ActionDrawer({
         </Field>
 
         {/* Goal — increasing actions always land in the warehouse */}
-        {INCREASING_TYPES.includes(actionType) ? (
+        {isIncreasingSelection ? (
           <Field label="الوجهة">
             <input
               style={{ ...inputStyle, opacity: 0.7, cursor: "not-allowed" }}

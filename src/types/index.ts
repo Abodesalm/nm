@@ -180,7 +180,8 @@ export interface StorageAction {
     | "usage"
     | "borrow"
     | "custody"
-    | "return";
+    | "return"
+    | "other";
   quantity: number;
   employee?: string | null;
   goal_model?: "customers" | "points" | "employees" | null;
@@ -189,6 +190,8 @@ export interface StorageAction {
   cost?: MoneyField | null;
   /** When cost is set: false = we paid (تكلفة), true = we were paid (مكسب) */
   gain?: boolean;
+  /** Only meaningful when type is "other" — which of the دخل/خرج pages created it */
+  flowDirection?: "in" | "out" | null;
   date: Date;
 }
 

@@ -41,6 +41,8 @@ export const SECTION_ACTIONS: Record<string, PermissionAction[]> = {
     { key: "item_delete", label: "حذف عنصر" },
     { key: "action_add", label: "إضافة حركة" },
     { key: "action_delete", label: "حذف حركة" },
+    { key: "income_access", label: "الوصول إلى صفحة الدخل" },
+    { key: "outcome_access", label: "الوصول إلى صفحة الخرج" },
   ],
   finance: [
     { key: "view", label: "عرض المالية" },
@@ -50,10 +52,8 @@ export const SECTION_ACTIONS: Record<string, PermissionAction[]> = {
     { key: "loans_manage", label: "تعديل/تسديد/حذف دين" },
     { key: "funds_manage", label: "إدارة الصناديق" },
   ],
-  history: [
-    { key: "view", label: "عرض السجل" },
-    { key: "delete", label: "حذف سجلات" },
-  ],
+  // History is a read-only audit trail — no delete action exists for it.
+  history: [{ key: "view", label: "عرض السجل" }],
   fieldwork: [
     { key: "view", label: "عرض تفقد العمل" },
     { key: "status_change", label: "تغيير حالة موظف" },

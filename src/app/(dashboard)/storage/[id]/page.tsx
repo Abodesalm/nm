@@ -21,6 +21,7 @@ import {
   Minus,
   FileDown,
   StickyNote,
+  MoreHorizontal,
 } from "lucide-react";
 import { downloadXLSX } from "@/lib/exportXLSX";
 
@@ -35,6 +36,8 @@ const ACTION_LABELS: Record<
   borrow: { label: "استعارة", color: "#3b82f6", icon: RefreshCw },
   custody: { label: "أمانة", color: "#14b8a6", icon: RefreshCw },
   return: { label: "إرجاع", color: "#8b5cf6", icon: RotateCcw },
+  // "أخرى" only exists via the دخل/خرج pages — shown here read-only if it appears
+  other: { label: "أخرى", color: "#64748b", icon: MoreHorizontal },
 };
 
 const GOAL_AR: Record<string, string> = {
@@ -625,9 +628,19 @@ export default function StorageItemPage() {
                         style={{
                           fontSize: 13,
                           fontWeight: 700,
-                          color: "var(--text)",
+                          color:
+                            action.type === "other"
+                              ? action.flowDirection === "in"
+                                ? "#22c55e"
+                                : "#ef4444"
+                              : "var(--text)",
                         }}
                       >
+                        {action.type === "other"
+                          ? action.flowDirection === "in"
+                            ? "+"
+                            : "-"
+                          : ""}
                         {action.quantity} {item.unit}
                       </span>
                       {action.employee && (

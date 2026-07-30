@@ -39,6 +39,11 @@ export const DECREASING_TYPES = [
   "custody",
 ];
 
+// "أخرى" (other) exists only within the دخل/خرج pages — its direction isn't
+// implied by the type itself (unlike every other type) but by which of the
+// two locked pages created it, persisted on the action as `flowDirection`.
+export const OTHER_TYPE = "other";
+
 export const TYPE_AR: Record<string, string> = {
   stock_in: "إدخال مخزون",
   stock_out: "إخراج مخزون",
@@ -47,13 +52,30 @@ export const TYPE_AR: Record<string, string> = {
   borrow: "استعارة",
   custody: "أمانة",
   return: "إرجاع",
+  other: "أخرى",
 };
+
+/** True if this action increases the item's quantity. Handles "other" via its persisted flowDirection. */
+export function isIncreasingAction(a: {
+  type: string;
+  flowDirection?: string | null;
+}) {
+  if (a.type === OTHER_TYPE) return a.flowDirection === "in";
+  return INCREASING_TYPES.includes(a.type);
+}
+
+/** Natural direction of a non-"other" type, or null if unknown (used to validate page-locked submissions). */
+function directionOfType(type: string): "in" | "out" | null {
+  if (INCREASING_TYPES.includes(type)) return "in";
+  if (DECREASING_TYPES.includes(type)) return "out";
+  return null;
+}
 
 export function recalcQuantities(actions: any[]) {
   let current = 0;
   let borrowed = 0;
   for (const a of actions) {
-    if (INCREASING_TYPES.includes(a.type)) current += a.quantity;
+    if (isIncreasingAction(a)) current += a.quantity;
     else current -= a.quantity;
     if (a.type === "borrow" || a.type === "custody") borrowed += a.quantity;
     if (a.type === "return") borrowed -= a.quantity;
@@ -105,9 +127,26 @@ export async function addStorageActionToItem(
   itemId: string,
   body: any,
   actorId?: string | null,
+  opts?: { enforceDirection?: "in" | "out" },
 ) {
   const item = await StorageItem.findById(itemId);
   if (!item) throw new ApiError("العنصر غير موجود", 404);
+
+  const enforceDirection = opts?.enforceDirection;
+
+  // "أخرى" only exists within a دخل/خرج-locked page — its direction is
+  // ALWAYS derived from that page context, never trusted from the client.
+  if (body.type === OTHER_TYPE) {
+    if (!enforceDirection)
+      throw new ApiError("نوع الحركة 'أخرى' غير متاح إلا من صفحتي الدخل أو الخرج");
+    body.flowDirection = enforceDirection;
+  } else {
+    body.flowDirection = null;
+    // A submission from a locked دخل/خرج page can't smuggle in the other direction's type
+    if (enforceDirection && directionOfType(body.type) !== enforceDirection) {
+      throw new ApiError("نوع الحركة غير مسموح في هذه الصفحة");
+    }
+  }
 
   const isGain = !!body.gain;
 
@@ -123,7 +162,7 @@ export async function addStorageActionToItem(
   }
 
   // Increasing actions always land in the warehouse — no external destination
-  if (INCREASING_TYPES.includes(body.type)) {
+  if (isIncreasingAction(body)) {
     body.goal_model = null;
     body.goal_id = null;
   }
@@ -243,6 +282,7 @@ export async function deleteStorageActionFromItem(
   itemId: string,
   actionId: string,
   actorId?: string | null,
+  opts?: { enforceDirection?: "in" | "out" },
 ) {
   const item = await StorageItem.findById(itemId);
   if (!item) throw new ApiError("العنصر غير موجود", 404);
@@ -252,6 +292,14 @@ export async function deleteStorageActionFromItem(
     (a: any) => a._id.toString() === actionId,
   );
   if (!action) throw new ApiError("الحركة غير موجودة", 404);
+
+  // A دخل/خرج-locked page can only delete actions of its own direction
+  if (
+    opts?.enforceDirection &&
+    isIncreasingAction(action) !== (opts.enforceDirection === "in")
+  ) {
+    throw new ApiError("لا يمكن حذف حركة من الاتجاه الآخر من هذه الصفحة", 403);
+  }
 
   item.actions = item.actions.filter(
     (a: any) => a._id.toString() !== actionId,

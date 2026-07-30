@@ -19,6 +19,8 @@ import {
   Package,
   StickyNote,
   FileDown,
+  MoreHorizontal,
+  Lock,
 } from "lucide-react";
 
 const ACTION_TYPES: {
@@ -35,7 +37,11 @@ const ACTION_TYPES: {
   { value: "custody", label: "أمانة", color: "#14b8a6", icon: RefreshCw },
   { value: "return", label: "إرجاع", color: "#8b5cf6", icon: RotateCcw },
 ];
-const TYPE_META = Object.fromEntries(ACTION_TYPES.map((t) => [t.value, t]));
+/** "أخرى" — only selectable from within a locked دخل/خرج page; direction comes from the page, not the type */
+const OTHER_META = { value: "other", label: "أخرى", color: "#64748b", icon: MoreHorizontal };
+const TYPE_META = Object.fromEntries(
+  [...ACTION_TYPES, OTHER_META].map((t) => [t.value, t]),
+);
 const INCREASING_TYPES = ["stock_in", "return"];
 const DECREASING_TYPES = ["stock_out", "consume", "usage", "borrow", "custody"];
 
@@ -207,6 +213,20 @@ function StorageActionsLogInner() {
   const router = useRouter();
   const searchParams = useSearchParams();
 
+  // Isolation: دخل and خرج are locked, separate pages that share this
+  // component. There is no way to reach the other direction's data or
+  // add-form from within one — every filter, chip, and endpoint call below
+  // is scoped to `direction` whenever it's set.
+  const rawDirection = searchParams.get("direction");
+  const direction: "in" | "out" | null =
+    rawDirection === "in" || rawDirection === "out" ? rawDirection : null;
+  const chipTypes =
+    direction === "in"
+      ? [...ACTION_TYPES.filter((t) => INCREASING_TYPES.includes(t.value)), OTHER_META]
+      : direction === "out"
+        ? [...ACTION_TYPES.filter((t) => DECREASING_TYPES.includes(t.value)), OTHER_META]
+        : ACTION_TYPES;
+
   const [rows, setRows] = useState<any[]>([]);
   const [total, setTotal] = useState(0);
   const [loading, setLoading] = useState(true);
@@ -236,13 +256,14 @@ function StorageActionsLogInner() {
   const [viewRow, setViewRow] = useState<any>(null);
   const [confirmDelete, setConfirmDelete] = useState<any>(null);
   const [exporting, setExporting] = useState(false);
+  const [forbidden, setForbidden] = useState(false);
 
-  // Apply ?types= from the دخل/خرج buttons once on load
+  // Reset the type-chip refinement whenever the locked direction changes
+  // (e.g. navigating directly between ?direction=in and ?direction=out)
   useEffect(() => {
-    const t = searchParams.get("types");
-    if (t) setTypes(t.split(",").filter(Boolean));
+    setTypes([]);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }, [direction]);
 
   useEffect(() => {
     fetch("/api/settings")
@@ -283,6 +304,7 @@ function StorageActionsLogInner() {
 
   const buildFilterParams = useCallback(() => {
     const params = new URLSearchParams();
+    if (direction) params.set("direction", direction);
     if (selectedItem) params.set("item", selectedItem._id);
     if (selectedEmployee) params.set("employee", selectedEmployee._id);
     if (types.length) params.set("types", types.join(","));
@@ -297,6 +319,7 @@ function StorageActionsLogInner() {
     if (maxQty) params.set("maxQty", maxQty);
     return params;
   }, [
+    direction,
     selectedItem,
     selectedEmployee,
     types,
@@ -317,6 +340,14 @@ function StorageActionsLogInner() {
 
     const res = await fetch(`/api/storage/actions?${params}`);
     const json = await res.json();
+    if (json.status !== "success") {
+      setForbidden(true);
+      setRows([]);
+      setTotal(0);
+      setLoading(false);
+      return;
+    }
+    setForbidden(false);
     setRows(json.data?.actions ?? []);
     setTotal(json.data?.total ?? 0);
     setLoading(false);
@@ -372,7 +403,11 @@ function StorageActionsLogInner() {
     await fetch("/api/storage/actions", {
       method: "DELETE",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ storageItem: row.item._id, actionId: row._id }),
+      body: JSON.stringify({
+        storageItem: row.item._id,
+        actionId: row._id,
+        direction: direction ?? undefined,
+      }),
     });
     setConfirmDelete(null);
     fetchRows();
@@ -390,7 +425,10 @@ function StorageActionsLogInner() {
       العنصر: row.item?.name ?? "",
       الفئة: row.item?.category ?? "",
       النوع: TYPE_META[row.type]?.label ?? row.type,
-      الكمية: row.quantity,
+      الكمية:
+        row.type === "other"
+          ? `${row.flowDirection === "in" ? "+" : "-"}${row.quantity}`
+          : row.quantity,
       الوحدة: row.item?.unit ?? "",
       الموظف: row.employee?.fullName ?? "—",
       الوجهة: row.goal_model ? (GOAL_AR[row.goal_model] ?? row.goal_model) : "—",
@@ -450,61 +488,108 @@ function StorageActionsLogInner() {
         <div style={{ flex: 1 }}>
           <h1
             className="font-title font-bold"
-            style={{ fontSize: 21, color: "var(--text)" }}
+            style={{
+              fontSize: 21,
+              color:
+                direction === "in"
+                  ? "#22c55e"
+                  : direction === "out"
+                    ? "#ef4444"
+                    : "var(--text)",
+            }}
           >
-            سجل حركات المخزون
+            {direction === "in"
+              ? "سجل الدخل"
+              : direction === "out"
+                ? "سجل الخرج"
+                : "سجل حركات المخزون"}
           </h1>
           <p style={{ fontSize: 13, color: "var(--text-muted)", marginTop: 2 }}>
-            كل الحركات عبر جميع عناصر المستودع
+            {direction === "in"
+              ? "كل حركات الدخل التي تزيد كمية عناصر المستودع"
+              : direction === "out"
+                ? "كل حركات الخرج التي تنقص كمية عناصر المستودع"
+                : "كل الحركات عبر جميع عناصر المستودع"}
           </p>
         </div>
-        <div style={{ display: "flex", gap: 8 }}>
-          <button
-            onClick={handleExport}
-            disabled={exporting}
-            style={{
-              display: "flex",
-              alignItems: "center",
-              gap: 7,
-              height: 40,
-              padding: "0 16px",
-              borderRadius: 9,
-              border: "1px solid var(--border)",
-              background: "var(--surface)",
-              color: "var(--text)",
-              fontSize: 14,
-              fontFamily: "'Tajawal', sans-serif",
-              fontWeight: 600,
-              cursor: exporting ? "not-allowed" : "pointer",
-              opacity: exporting ? 0.7 : 1,
-            }}
-          >
-            <FileDown size={16} /> {exporting ? "جاري التصدير..." : "تصدير Excel"}
-          </button>
-          <button
-            onClick={() => setAddOpen(true)}
-            style={{
-              display: "flex",
-              alignItems: "center",
-              gap: 7,
-              height: 40,
-              padding: "0 18px",
-              borderRadius: 9,
-              border: "none",
-              background: "#f97316",
-              color: "#fff",
-              fontSize: 14,
-              fontFamily: "'Tajawal', sans-serif",
-              fontWeight: 600,
-              cursor: "pointer",
-              boxShadow: "0 4px 12px rgba(249,115,22,0.3)",
-            }}
-          >
-            <Plus size={16} /> إضافة حركة
-          </button>
-        </div>
+        {!forbidden && (
+          <div style={{ display: "flex", gap: 8 }}>
+            <button
+              onClick={handleExport}
+              disabled={exporting}
+              style={{
+                display: "flex",
+                alignItems: "center",
+                gap: 7,
+                height: 40,
+                padding: "0 16px",
+                borderRadius: 9,
+                border: "1px solid var(--border)",
+                background: "var(--surface)",
+                color: "var(--text)",
+                fontSize: 14,
+                fontFamily: "'Tajawal', sans-serif",
+                fontWeight: 600,
+                cursor: exporting ? "not-allowed" : "pointer",
+                opacity: exporting ? 0.7 : 1,
+              }}
+            >
+              <FileDown size={16} /> {exporting ? "جاري التصدير..." : "تصدير Excel"}
+            </button>
+            <button
+              onClick={() => setAddOpen(true)}
+              style={{
+                display: "flex",
+                alignItems: "center",
+                gap: 7,
+                height: 40,
+                padding: "0 18px",
+                borderRadius: 9,
+                border: "none",
+                background: "#f97316",
+                color: "#fff",
+                fontSize: 14,
+                fontFamily: "'Tajawal', sans-serif",
+                fontWeight: 600,
+                cursor: "pointer",
+                boxShadow: "0 4px 12px rgba(249,115,22,0.3)",
+              }}
+            >
+              <Plus size={16} /> إضافة حركة
+            </button>
+          </div>
+        )}
       </div>
 
+      {forbidden ? (
+        <div
+          style={{
+            display: "flex",
+            flexDirection: "column",
+            alignItems: "center",
+            justifyContent: "center",
+            gap: 10,
+            padding: "60px 20px",
+            background: "var(--surface)",
+            border: "1px solid var(--border)",
+            borderRadius: 12,
+          }}
+        >
+          <Lock size={28} style={{ color: "var(--text-muted)" }} />
+          <p
+            className="font-title font-semibold"
+            style={{ fontSize: 15, color: "var(--text)" }}
+          >
+            ليس لديك صلاحية لعرض هذه الصفحة
+          </p>
+          <p style={{ fontSize: 13, color: "var(--text-muted)" }}>
+            تحتاج صلاحية{" "}
+            {direction === "in" ? "الوصول إلى صفحة الدخل" : "الوصول إلى صفحة الخرج"}
+            {" "}للمتابعة — تواصل مع مسؤول النظام.
+          </p>
+        </div>
+      ) : (
+      <>
       {/* Filters */}
       <div
         style={{
@@ -643,71 +728,75 @@ function StorageActionsLogInner() {
           )}
         </div>
 
-        {/* Row 3: type chips + presets */}
+        {/* Row 3: type chips (+ cross-direction presets only in the unlocked overview) */}
         <div style={{ display: "flex", gap: 8, flexWrap: "wrap", alignItems: "center" }}>
-          <button
-            onClick={() => setTypes([])}
-            style={{
-              height: 30,
-              padding: "0 12px",
-              borderRadius: 20,
-              border: `1.5px solid ${types.length === 0 ? "#f97316" : "var(--border)"}`,
-              background: types.length === 0 ? "rgba(249,115,22,0.1)" : "transparent",
-              color: types.length === 0 ? "#f97316" : "var(--text-muted)",
-              fontSize: 12,
-              fontFamily: "'Tajawal', sans-serif",
-              fontWeight: 600,
-              cursor: "pointer",
-            }}
-          >
-            الكل
-          </button>
-          <button
-            onClick={() => setTypes(INCREASING_TYPES)}
-            style={{
-              height: 30,
-              padding: "0 12px",
-              borderRadius: 20,
-              border: "1.5px solid #22c55e",
-              background:
-                types.length === INCREASING_TYPES.length &&
-                INCREASING_TYPES.every((t) => types.includes(t))
-                  ? "rgba(34,197,94,0.12)"
-                  : "transparent",
-              color: "#22c55e",
-              fontSize: 12,
-              fontFamily: "'Tajawal', sans-serif",
-              fontWeight: 600,
-              cursor: "pointer",
-            }}
-          >
-            دخل
-          </button>
-          <button
-            onClick={() => setTypes(DECREASING_TYPES)}
-            style={{
-              height: 30,
-              padding: "0 12px",
-              borderRadius: 20,
-              border: "1.5px solid #ef4444",
-              background:
-                types.length === DECREASING_TYPES.length &&
-                DECREASING_TYPES.every((t) => types.includes(t))
-                  ? "rgba(239,68,68,0.12)"
-                  : "transparent",
-              color: "#ef4444",
-              fontSize: 12,
-              fontFamily: "'Tajawal', sans-serif",
-              fontWeight: 600,
-              cursor: "pointer",
-            }}
-          >
-            خرج
-          </button>
+          {!direction && (
+            <>
+              <button
+                onClick={() => setTypes([])}
+                style={{
+                  height: 30,
+                  padding: "0 12px",
+                  borderRadius: 20,
+                  border: `1.5px solid ${types.length === 0 ? "#f97316" : "var(--border)"}`,
+                  background: types.length === 0 ? "rgba(249,115,22,0.1)" : "transparent",
+                  color: types.length === 0 ? "#f97316" : "var(--text-muted)",
+                  fontSize: 12,
+                  fontFamily: "'Tajawal', sans-serif",
+                  fontWeight: 600,
+                  cursor: "pointer",
+                }}
+              >
+                الكل
+              </button>
+              <button
+                onClick={() => setTypes(INCREASING_TYPES)}
+                style={{
+                  height: 30,
+                  padding: "0 12px",
+                  borderRadius: 20,
+                  border: "1.5px solid #22c55e",
+                  background:
+                    types.length === INCREASING_TYPES.length &&
+                    INCREASING_TYPES.every((t) => types.includes(t))
+                      ? "rgba(34,197,94,0.12)"
+                      : "transparent",
+                  color: "#22c55e",
+                  fontSize: 12,
+                  fontFamily: "'Tajawal', sans-serif",
+                  fontWeight: 600,
+                  cursor: "pointer",
+                }}
+              >
+                دخل
+              </button>
+              <button
+                onClick={() => setTypes(DECREASING_TYPES)}
+                style={{
+                  height: 30,
+                  padding: "0 12px",
+                  borderRadius: 20,
+                  border: "1.5px solid #ef4444",
+                  background:
+                    types.length === DECREASING_TYPES.length &&
+                    DECREASING_TYPES.every((t) => types.includes(t))
+                      ? "rgba(239,68,68,0.12)"
+                      : "transparent",
+                  color: "#ef4444",
+                  fontSize: 12,
+                  fontFamily: "'Tajawal', sans-serif",
+                  fontWeight: 600,
+                  cursor: "pointer",
+                }}
+              >
+                خرج
+              </button>
 
-          <span style={{ width: 1, height: 20, background: "var(--border)" }} />
+              <span style={{ width: 1, height: 20, background: "var(--border)" }} />
+            </>
+          )}
 
-          {ACTION_TYPES.map((t) => {
+          {chipTypes.map((t) => {
             const active = types.includes(t.value);
             return (
               <button
@@ -841,7 +930,19 @@ function StorageActionsLogInner() {
                             </span>
                           </td>
                           <td style={tdStyle}>
-                            <span style={{ fontWeight: 700 }}>{row.quantity}</span>
+                            {row.type === "other" ? (
+                              <span
+                                style={{
+                                  fontWeight: 700,
+                                  color: row.flowDirection === "in" ? "#22c55e" : "#ef4444",
+                                }}
+                              >
+                                {row.flowDirection === "in" ? "+" : "-"}
+                                {row.quantity}
+                              </span>
+                            ) : (
+                              <span style={{ fontWeight: 700 }}>{row.quantity}</span>
+                            )}
                           </td>
                           <td style={{ ...tdStyle, color: "var(--text-muted)" }}>
                             {row.employee ? `${row.employee.fullName}` : "—"}
@@ -936,13 +1037,16 @@ function StorageActionsLogInner() {
           </>
         )}
       </div>
+      </>
+      )}
 
-      {/* Add action — any item */}
+      {/* Add action — any item, locked to this page's direction */}
       <ActionDrawer
         open={addOpen}
         onClose={() => setAddOpen(false)}
         onSaved={fetchRows}
         mode="global"
+        restrictDirection={direction ?? undefined}
         defaultExchange={defaultExchange}
       />
 
