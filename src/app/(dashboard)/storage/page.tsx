@@ -18,7 +18,8 @@ export default function StoragePage() {
     if (user?.isSuperAdmin) return true;
     const perm = user?.permissions?.find((p: any) => p.section === "storage");
     if (!perm || perm.permission === "none") return false;
-    return perm.actions?.[actionKey] !== false;
+    if (perm.permission === "full") return true;
+    return perm.actions?.[actionKey] === true;
   }
   const canIncome = hasStorageAction("income_access");
   const canOutcome = hasStorageAction("outcome_access");

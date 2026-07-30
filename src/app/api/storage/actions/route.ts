@@ -2,23 +2,18 @@ import { NextRequest } from "next/server";
 import mongoose from "mongoose";
 import { connectDB } from "@/lib/db/mongoose";
 import StorageItem from "@/lib/db/models/StorageItem";
-import { permissionGuard, ok, err } from "@/lib/api-factory";
+import { ok, err } from "@/lib/api-factory";
 import {
   addStorageActionToItem,
   deleteStorageActionFromItem,
+  requireDirectionAccess,
+  isIncreasingAction,
   ApiError,
   INCREASING_TYPES,
   DECREASING_TYPES,
 } from "@/lib/storageActions";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
-
-/** دخل/خرج pages each need their own permission to lock them independently. */
-function directionAction(direction: string | null) {
-  if (direction === "in") return "income_access";
-  if (direction === "out") return "outcome_access";
-  return null;
-}
 
 /**
  * سجل حركات المخزون — every action across every item, with filters.
@@ -27,13 +22,11 @@ function directionAction(direction: string | null) {
  */
 export async function GET(req: NextRequest) {
   const { searchParams } = new URL(req.url);
-  const direction = searchParams.get("direction"); // "in" | "out" | null — page lock
+  const rawDirection = searchParams.get("direction");
+  const direction: "in" | "out" | null =
+    rawDirection === "in" || rawDirection === "out" ? rawDirection : null;
 
-  const denied = await permissionGuard(
-    "storage",
-    "readonly",
-    directionAction(direction) ?? "view",
-  );
+  const denied = await requireDirectionAccess(direction);
   if (denied) return denied;
 
   try {
@@ -176,16 +169,10 @@ export async function GET(req: NextRequest) {
 // it gates the permission AND is enforced server-side (never trusted blindly).
 export async function POST(req: NextRequest) {
   const body = await req.json();
-  const direction: "in" | "out" | undefined =
-    body.direction === "in" || body.direction === "out"
-      ? body.direction
-      : undefined;
+  const direction: "in" | "out" | null =
+    body.direction === "in" || body.direction === "out" ? body.direction : null;
 
-  const denied = await permissionGuard(
-    "storage",
-    "full",
-    directionAction(direction ?? null) ?? "action_add",
-  );
+  const denied = await requireDirectionAccess(direction);
   if (denied) return denied;
   try {
     await connectDB();
@@ -196,7 +183,7 @@ export async function POST(req: NextRequest) {
       body.storageItem,
       body,
       (session?.user as any)?.id,
-      { enforceDirection: direction },
+      { enforceDirection: direction ?? undefined },
     );
     return ok(item);
   } catch (e: any) {
@@ -204,31 +191,34 @@ export async function POST(req: NextRequest) {
   }
 }
 
-// DELETE — remove an action from its item (same cascade as the item profile)
+// DELETE — remove an action from its item (same cascade as the item profile).
+// The permission check is based on the action's OWN, server-determined
+// direction — never on whatever the client claims — so this can't be
+// bypassed by simply omitting `direction` from the request body.
 export async function DELETE(req: NextRequest) {
-  const { storageItem, actionId, direction: rawDirection } = await req.json();
-  const direction: "in" | "out" | undefined =
-    rawDirection === "in" || rawDirection === "out" ? rawDirection : undefined;
+  const { storageItem, actionId } = await req.json();
+  if (!storageItem || !actionId) return err("العنصر والحركة مطلوبان");
 
-  const denied = await permissionGuard(
-    "storage",
-    "full",
-    directionAction(direction ?? null) ?? "action_delete",
-  );
-  if (denied) return denied;
   try {
     await connectDB();
-    if (!storageItem || !actionId)
-      return err("العنصر والحركة مطلوبان");
-    const session = await getServerSession(authOptions);
+    const item = await StorageItem.findById(storageItem);
+    if (!item) return err("العنصر غير موجود", 404);
+    const action = item.actions.find((a: any) => a._id.toString() === actionId);
+    if (!action) return err("الحركة غير موجودة", 404);
 
-    const { item } = await deleteStorageActionFromItem(
+    const actualDirection: "in" | "out" = isIncreasingAction(action)
+      ? "in"
+      : "out";
+    const denied = await requireDirectionAccess(actualDirection);
+    if (denied) return denied;
+
+    const session = await getServerSession(authOptions);
+    const { item: updated } = await deleteStorageActionFromItem(
       storageItem,
       actionId,
       (session?.user as any)?.id,
-      { enforceDirection: direction },
     );
-    return ok(item);
+    return ok(updated);
   } catch (e: any) {
     return err(e.message, e instanceof ApiError ? e.status : 500);
   }

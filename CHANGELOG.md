@@ -3,6 +3,23 @@
 > Appended to at the end of every session. Read at the start of every session.
 > Format per entry: date, what changed, files touched, next.
 
+## 2026-07-30 — Security fix: storage دخل/خرج permission isolation could be fully bypassed
+
+**Reported bug:** a user granted storage `readonly` + `outcome_access` only (meant to be locked to the خرج page: view/add/delete there, nothing else) could in practice view/add/delete on both دخل and خرج, and reach every other storage action.
+
+**Root causes found and fixed, all in the storage-action permission gate — never in the shared `permissionGuard`, whose "fallback to section level" behavior is correct for every other section's plain `view` check:**
+1. `income_access`/`outcome_access` were checked via `permissionGuard(section, "readonly", action)` for view requests. That helper's fallback logic only blocks a `readonly`-required route when `required==="full"`, so it never actually blocks a `readonly`-required check — any non-none section permission always passed regardless of whether the specific direction was granted, denied, or left uncustomized. This silently let `outcome_access`-only users view دخل and the neutral (direction-less) overview.
+2. The neutral overview's POST/DELETE (no `direction` in the request) fell back to the generic `action_add`/`action_delete` keys — if an admin had toggled those (a very plausible mix-up with the direction-specific ones), a single-direction user could add/delete on **any** item, either direction, via the unrestricted page.
+3. The per-item route (`api/storage/[id]/actions` DELETE) had no concept of direction at all — `action_delete: true` let a user delete **any** action on **any** item regardless of which direction they were actually scoped to.
+
+**Fix:** introduced `requireDirectionAccess(direction)` in `storageActions.ts` — a dedicated, non-fallback gate: it requires the specific direction's action key to be explicitly `true` (or full section permission), and requires **both** explicitly granted (or full) for the neutral/direction-less case. All three storage-action entry points (`api/storage/actions` GET/POST/DELETE, `api/storage/[id]/actions` DELETE) now call it. DELETE routes determine the target action's **real** direction from the DB (`isIncreasingAction`) before gating — never trust a client-supplied direction — so the check can't be bypassed by omitting/spoofing it in the request body. Also removed the now-fully-unused `action_add`/`action_delete` permission keys from the catalog (`permissions.ts`) — they no longer gate anything anywhere and were exactly the kind of same-sounding-but-inert option that likely caused the admin's original mix-up — and fixed the matching client-side bug in `storage/page.tsx`'s `hasStorageAction()`, which used to treat an *unset* action key as allowed (`!== false`) instead of requiring an explicit `true`.
+
+**Investigated separately, not a code bug:** the report also claimed the user could "delete entire items." `item_delete` gating (`api/storage/[id]` DELETE, `permissionGuard("storage","full","item_delete")`) was already correct — a `readonly` user without an explicit override is blocked, confirmed live. Most likely explanation: the admin's saved permission profile for that specific user didn't actually match what was intended (e.g. `item_delete` or the section level itself ended up different from what was described).
+
+**Files touched:** `src/lib/storageActions.ts` (new `requireDirectionAccess`, `deleteStorageActionFromItem` simplified — direction gating now lives in the callers), `src/app/api/storage/actions/route.ts`, `src/app/api/storage/[id]/actions/route.ts`, `src/lib/permissions.ts`, `src/app/(dashboard)/storage/page.tsx`.
+
+**Verification:** `npx tsc --noEmit` clean; `npm run build` succeeds. Live end-to-end against a fresh test user (`storage: readonly`, `actions: { outcome_access: true }`, every other section `none`) with a clean cookie jar: employees 403; `?direction=in` view 403; `?direction=out` view 200; neutral (no direction) view 403; add خرج action 200; add دخل action 403; delete a دخل action (via both the global and per-item routes) 403 regardless of request body; delete the خرج action just added 200 (quantity correctly reverted); whole-item delete 403. Test user and test data cleaned up afterward.
+
 ## 2026-07-24 (3) — الكمية الأولية column on the storage main table
 
 - Added an "الكمية الأولية" (initial quantity) column to the storage list table, right before "الكمية الحالية". Shows the quantity of the item's very first action (array index 0 — the earliest one ever recorded); shows "—" for a brand-new item with no actions yet.

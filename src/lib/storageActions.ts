@@ -10,6 +10,9 @@ import {
   nextInvoiceNumber,
 } from "@/lib/treasury";
 import { isLoanSettled } from "@/lib/loans";
+import { err } from "@/lib/api-factory";
+import { getServerSession } from "next-auth";
+import { authOptions } from "@/lib/auth";
 
 /**
  * Core add/delete logic for storage actions — the single source of truth used
@@ -62,6 +65,39 @@ export function isIncreasingAction(a: {
 }) {
   if (a.type === OTHER_TYPE) return a.flowDirection === "in";
   return INCREASING_TYPES.includes(a.type);
+}
+
+/**
+ * The ONLY gate for viewing/adding/deleting storage actions by direction.
+ *
+ * Unlike permissionGuard's generic action-override (which falls back to
+ * "any non-none section permission passes" for readonly-required routes —
+ * correct for a plain per-section "view" flag, but WRONG for a hard
+ * page-isolation switch), this NEVER falls back. income_access/outcome_access
+ * must be explicitly `true`, or the user must have full section access.
+ *
+ * direction=null means "both at once" (the neutral, cross-direction view/add) —
+ * requires full access, or having been explicitly granted BOTH directions.
+ * This closes the loophole where a user granted only خرج could reach the
+ * unrestricted neutral log and add/view/delete دخل data through it.
+ */
+export async function requireDirectionAccess(direction: "in" | "out" | null) {
+  const session = await getServerSession(authOptions);
+  if (!session) return err("Unauthorized", 401);
+
+  const user = session.user as any;
+  if (user.isSuperAdmin) return null;
+
+  const perm = user.permissions?.find((p: any) => p.section === "storage");
+  if (!perm || perm.permission === "none") return err("Forbidden", 403);
+  if (perm.permission === "full") return null;
+
+  const hasIncome = perm.actions?.income_access === true;
+  const hasOutcome = perm.actions?.outcome_access === true;
+
+  if (direction === "in") return hasIncome ? null : err("Forbidden — action not allowed", 403);
+  if (direction === "out") return hasOutcome ? null : err("Forbidden — action not allowed", 403);
+  return hasIncome && hasOutcome ? null : err("Forbidden — action not allowed", 403);
 }
 
 /** Natural direction of a non-"other" type, or null if unknown (used to validate page-locked submissions). */
@@ -277,12 +313,16 @@ export async function addStorageActionToItem(
   return { item, action: newAction };
 }
 
-/** Delete an action from an item — full side effects, mirrors addStorageActionToItem's cascades. */
+/**
+ * Delete an action from an item — full side effects, mirrors
+ * addStorageActionToItem's cascades. Direction-based permission gating
+ * happens in the ROUTE (which determines the action's real direction from
+ * the DB before calling this), not here — this function only mutates.
+ */
 export async function deleteStorageActionFromItem(
   itemId: string,
   actionId: string,
   actorId?: string | null,
-  opts?: { enforceDirection?: "in" | "out" },
 ) {
   const item = await StorageItem.findById(itemId);
   if (!item) throw new ApiError("العنصر غير موجود", 404);
@@ -292,14 +332,6 @@ export async function deleteStorageActionFromItem(
     (a: any) => a._id.toString() === actionId,
   );
   if (!action) throw new ApiError("الحركة غير موجودة", 404);
-
-  // A دخل/خرج-locked page can only delete actions of its own direction
-  if (
-    opts?.enforceDirection &&
-    isIncreasingAction(action) !== (opts.enforceDirection === "in")
-  ) {
-    throw new ApiError("لا يمكن حذف حركة من الاتجاه الآخر من هذه الصفحة", 403);
-  }
 
   item.actions = item.actions.filter(
     (a: any) => a._id.toString() !== actionId,

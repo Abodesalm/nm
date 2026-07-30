@@ -39,8 +39,6 @@ export const SECTION_ACTIONS: Record<string, PermissionAction[]> = {
     { key: "item_add", label: "إضافة عنصر" },
     { key: "item_edit", label: "تعديل عنصر" },
     { key: "item_delete", label: "حذف عنصر" },
-    { key: "action_add", label: "إضافة حركة" },
-    { key: "action_delete", label: "حذف حركة" },
     { key: "income_access", label: "الوصول إلى صفحة الدخل" },
     { key: "outcome_access", label: "الوصول إلى صفحة الخرج" },
   ],
