@@ -3,6 +3,17 @@
 > Appended to at the end of every session. Read at the start of every session.
 > Format per entry: date, what changed, files touched, next.
 
+## 2026-07-24 (2) — Storage actions can only be added from the دخل/خرج pages
+
+**What changed:**
+- Removed both remaining per-item "add action" entry points: the "+ إضافة حركة" button on the item profile page, and the "إضافة حركة" row-menu item on the storage list table. Adding a movement is now only possible from `/storage/actions?direction=in|out`, matching last session's isolation work.
+- **Closed the server-side gap this exposed**: removed the `POST` handler from the per-item route (`api/storage/[id]/actions`) entirely. It only ever required the general `action_add` permission with no direction awareness — leaving it live would have let anyone with that permission (but explicitly denied `income_access`/`outcome_access`) add stock movements through a back door, undermining the whole point of the per-direction lock. Confirmed the route now returns 405 for POST. Its `DELETE` handler (used by the item profile's delete button) is untouched and still works.
+- Read-only viewing of an existing action (click a row → mini-profile) is unaffected on both the item profile and the log pages.
+
+**Files touched:** `storage/[id]/page.tsx` (button + drawer + `actionDrawer` state + `Zap` import removed), `storage/page.tsx` (`actionItem` state, `ActionDrawer` import, and the now-unused `defaultExchange`/settings fetch removed), `components/storage/StorageTable.tsx` (row-menu entry + `onAction` prop removed), `api/storage/[id]/actions/route.ts` (POST removed, comment explains why).
+
+**Verification:** `npx tsc --noEmit` clean; `npm run build` succeeds. Live against the running server: per-item `POST .../actions` now 405s and leaves quantity unchanged; the دخل-page's global POST still successfully adds a movement; the item profile's `DELETE` still removes an action correctly (quantity reverted); all three pages (`/storage`, `/storage/[id]`, `/storage/actions?direction=in`) render 200.
+
 ## 2026-07-24 — Isolate دخل/خرج pages, أخرى action type, per-direction permissions, History is read-only
 
 **What changed:**

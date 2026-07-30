@@ -12,7 +12,6 @@ import {
   ArrowRight,
   Pencil,
   Trash2,
-  Zap,
   Package,
   TrendingUp,
   TrendingDown,
@@ -54,7 +53,6 @@ export default function StorageItemPage() {
   const [defaultExchange, setDefaultExchange] = useState(15000);
   const [loading, setLoading] = useState(true);
   const [editDrawer, setEditDrawer] = useState(false);
-  const [actionDrawer, setActionDrawer] = useState(false);
   const [confirmDelete, setConfirmDelete] = useState(false);
   const [confirmDeleteAction, setConfirmDeleteAction] = useState<string | null>(
     null,
@@ -191,26 +189,6 @@ export default function StorageItemPage() {
           <ArrowRight size={15} /> رجوع
         </button>
         <div style={{ display: "flex", gap: 8 }}>
-          <button
-            onClick={() => setActionDrawer(true)}
-            style={{
-              display: "flex",
-              alignItems: "center",
-              gap: 6,
-              height: 36,
-              padding: "0 14px",
-              borderRadius: 8,
-              border: "none",
-              background: "#f97316",
-              color: "#fff",
-              fontSize: 13,
-              fontFamily: "'Tajawal', sans-serif",
-              fontWeight: 600,
-              cursor: "pointer",
-            }}
-          >
-            <Zap size={14} /> إضافة حركة
-          </button>
           <button
             onClick={() => setEditDrawer(true)}
             style={{
@@ -791,14 +769,8 @@ export default function StorageItemPage() {
         onSaved={fetchItem}
         item={item}
       />
-      <ActionDrawer
-        open={actionDrawer}
-        onClose={() => setActionDrawer(false)}
-        onSaved={fetchItem}
-        item={item}
-        defaultExchange={defaultExchange}
-      />
-      {/* Read-only mini profile of a clicked action */}
+      {/* Read-only mini profile of a clicked action — actions are added only
+          from the دخل/خرج pages, never from the item profile */}
       <ActionDrawer
         open={!!viewAction}
         onClose={() => setViewAction(null)}

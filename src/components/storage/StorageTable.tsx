@@ -15,7 +15,6 @@ import {
   ChevronDown,
   Columns,
   Check,
-  Zap,
 } from "lucide-react";
 
 const COLUMNS = [
@@ -31,7 +30,6 @@ const STORAGE_KEY = "storage_hidden_cols";
 
 interface Props {
   onEdit: (item: any) => void;
-  onAction: (item: any) => void;
   onDelete: (id: string) => void;
   refresh: number;
   search: string;
@@ -42,7 +40,6 @@ interface Props {
 
 export function StorageTable({
   onEdit,
-  onAction,
   onDelete,
   refresh,
   search,
@@ -470,14 +467,6 @@ export function StorageTable({
                                     icon: Eye,
                                     action: () => {
                                       router.push(`/storage/${item._id}`);
-                                      setOpenMenu(null);
-                                    },
-                                  },
-                                  {
-                                    label: "إضافة حركة",
-                                    icon: Zap,
-                                    action: () => {
-                                      onAction(item);
                                       setOpenMenu(null);
                                     },
                                   },

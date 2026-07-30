@@ -6,7 +6,6 @@ import { useSession } from "next-auth/react";
 import { Plus, Search, Eye, EyeOff, ArrowDownToLine, ArrowUpFromLine } from "lucide-react";
 import { StorageTable } from "@/components/storage/StorageTable";
 import { StorageDrawer } from "@/components/storage/StorageDrawer";
-import { ActionDrawer } from "@/components/storage/ActionDrawer";
 
 export default function StoragePage() {
   const router = useRouter();
@@ -23,7 +22,6 @@ export default function StoragePage() {
   }
   const canIncome = hasStorageAction("income_access");
   const canOutcome = hasStorageAction("outcome_access");
-  const [defaultExchange, setDefaultExchange] = useState(15000);
   const [categories, setCategories] = useState<string[]>([]);
   const [search, setSearch] = useState("");
   const [filterCategory, setFilterCategory] = useState("");
@@ -33,18 +31,13 @@ export default function StoragePage() {
 
   const [addDrawer, setAddDrawer] = useState(false);
   const [editItem, setEditItem] = useState<any>(null);
-  const [actionItem, setActionItem] = useState<any>(null);
 
   useEffect(() => {
     fetchMeta();
   }, [refresh]);
 
   async function fetchMeta() {
-    const [settingsRes, storageRes] = await Promise.all([
-      fetch("/api/settings").then((r) => r.json()),
-      fetch("/api/storage?limit=1").then((r) => r.json()),
-    ]);
-    setDefaultExchange(settingsRes.data?.defaultExchangeRate ?? 15000);
+    const storageRes = await fetch("/api/storage?limit=1").then((r) => r.json());
     setCategories(storageRes.data?.categories ?? []);
   }
 
@@ -292,7 +285,6 @@ export default function StoragePage() {
         showHidden={showHidden}
         refresh={refresh}
         onEdit={setEditItem}
-        onAction={setActionItem}
         onDelete={handleDelete}
       />
 
@@ -308,15 +300,6 @@ export default function StoragePage() {
         onSaved={() => setRefresh((r) => r + 1)}
         item={editItem}
       />
-      {actionItem && (
-        <ActionDrawer
-          open={!!actionItem}
-          onClose={() => setActionItem(null)}
-          onSaved={() => setRefresh((r) => r + 1)}
-          item={actionItem}
-          defaultExchange={defaultExchange}
-        />
-      )}
     </div>
   );
 }

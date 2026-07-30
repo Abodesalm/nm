@@ -1,36 +1,13 @@
 import { NextRequest } from "next/server";
 import { connectDB } from "@/lib/db/mongoose";
 import { permissionGuard, ok, err } from "@/lib/api-factory";
-import {
-  addStorageActionToItem,
-  deleteStorageActionFromItem,
-  ApiError,
-} from "@/lib/storageActions";
+import { deleteStorageActionFromItem, ApiError } from "@/lib/storageActions";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 
-export async function POST(
-  req: NextRequest,
-  context: { params: Promise<{ id: string }> },
-) {
-  const denied = await permissionGuard("storage", "full", "action_add");
-  if (denied) return denied;
-  try {
-    const { id } = await context.params;
-    await connectDB();
-    const body = await req.json();
-    const session = await getServerSession(authOptions);
-
-    const { item } = await addStorageActionToItem(
-      id,
-      body,
-      (session?.user as any)?.id,
-    );
-    return ok(item);
-  } catch (e: any) {
-    return err(e.message, e instanceof ApiError ? e.status : 500);
-  }
-}
+// Actions are added ONLY from the دخل/خرج pages (api/storage/actions POST,
+// direction-gated). There is intentionally no POST here — adding an action
+// per-item would bypass the income_access/outcome_access permission split.
 
 export async function DELETE(
   req: NextRequest,
