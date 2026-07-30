@@ -21,6 +21,7 @@ const COLUMNS = [
   { key: "name", label: "اسم العنصر", sortable: true },
   { key: "category", label: "الفئة", sortable: false },
   { key: "unit", label: "الوحدة", sortable: false },
+  { key: "initialQuantity", label: "الكمية الأولية", sortable: false },
   { key: "currentQuantity", label: "الكمية الحالية", sortable: true },
   { key: "borrowedQuantity", label: "المستعار", sortable: false },
   { key: "status", label: "الحالة", sortable: true },
@@ -371,6 +372,16 @@ export function StorageTable({
                             )}
                             {col.key === "category" && item.category}
                             {col.key === "unit" && item.unit}
+                            {col.key === "initialQuantity" &&
+                              (item.actions?.[0] ? (
+                                <span>
+                                  {item.actions[0].quantity} {item.unit}
+                                </span>
+                              ) : (
+                                <span style={{ color: "var(--text-muted)" }}>
+                                  —
+                                </span>
+                              ))}
                             {col.key === "currentQuantity" && (
                               <span style={{ fontWeight: 600 }}>
                                 {item.currentQuantity} {item.unit}

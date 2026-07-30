@@ -3,6 +3,13 @@
 > Appended to at the end of every session. Read at the start of every session.
 > Format per entry: date, what changed, files touched, next.
 
+## 2026-07-24 (3) — الكمية الأولية column on the storage main table
+
+- Added an "الكمية الأولية" (initial quantity) column to the storage list table, right before "الكمية الحالية". Shows the quantity of the item's very first action (array index 0 — the earliest one ever recorded); shows "—" for a brand-new item with no actions yet.
+- `api/storage` GET no longer excludes `actions` outright — it now uses Mongoose's `.slice("actions", 1)` to keep only the first entry, so the list stays cheap (one action object per item, not the whole history) while making this value available.
+
+**Verification:** `npx tsc --noEmit` clean; `npm run build` succeeds. Live: an existing item correctly returned exactly 1 sliced action with its original quantity; a freshly created test item returned `actions: []` (renders "—"); test item cleaned up afterward; `/storage` renders 200.
+
 ## 2026-07-24 (2) — Storage actions can only be added from the دخل/خرج pages
 
 **What changed:**

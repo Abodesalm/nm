@@ -38,8 +38,10 @@ export async function GET(req: NextRequest) {
     };
 
     const total = await StorageItem.countDocuments(query);
+    // Only the first action is needed for "الكمية الأولية" (initial quantity)
+    // in the list view — slice instead of excluding, to keep this cheap.
     const items = await StorageItem.find(query)
-      .select("-actions")
+      .slice("actions", 1)
       .sort(sort)
       .skip((page - 1) * limit)
       .limit(limit);
