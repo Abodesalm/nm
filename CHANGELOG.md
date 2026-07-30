@@ -3,6 +3,13 @@
 > Appended to at the end of every session. Read at the start of every session.
 > Format per entry: date, what changed, files touched, next.
 
+## 2026-07-30 (2) — Storage action cost display was USD, should be SP
+
+- Fixed two spots showing an action's cost as `$76.92` instead of the SP-primary convention (`money-and-treasury` skill): the دخل/خرج log table (`storage/actions/page.tsx`) and the item profile's action card list (`storage/[id]/page.tsx`). Both now show `1,000,000 ل.س`, reading `cost.SP` instead of `cost.USD`.
+- The export/XLSX column on the log page already had a separate "المبلغ (ل.س)" column — untouched. `ActionDrawer`'s own cost label already showed SP-primary with a `≈ $` secondary — untouched.
+
+**Verification:** `npx tsc --noEmit` clean; `npm run build` succeeds. Confirmed live: `/api/storage/actions` cost payload (`{USD, SP, exchange}`) unchanged, only the display reads a different field; both pages render 200.
+
 ## 2026-07-30 — Security fix: storage دخل/خرج permission isolation could be fully bypassed
 
 **Reported bug:** a user granted storage `readonly` + `outcome_access` only (meant to be locked to the خرج page: view/add/delete there, nothing else) could in practice view/add/delete on both دخل and خرج, and reach every other storage action.

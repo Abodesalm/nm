@@ -979,7 +979,8 @@ function StorageActionsLogInner() {
                                   fontWeight: 600,
                                 }}
                               >
-                                {row.gain ? "+" : "-"}${row.cost.USD?.toFixed(2)}
+                                {row.gain ? "+" : "-"}
+                                {(row.cost.SP ?? 0).toLocaleString("en")} ل.س
                               </span>
                             ) : (
                               <span style={{ color: "var(--text-muted)" }}>—</span>

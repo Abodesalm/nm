@@ -661,7 +661,7 @@ export default function StorageItemPage() {
                             : ""}
                         </span>
                       )}
-                      {action.cost?.USD ? (
+                      {action.cost?.SP || action.cost?.USD ? (
                         <span
                           style={{
                             fontSize: 12,
@@ -669,7 +669,8 @@ export default function StorageItemPage() {
                             fontWeight: 600,
                           }}
                         >
-                          {action.gain ? "+" : "-"}${action.cost.USD.toFixed(2)}
+                          {action.gain ? "+" : "-"}
+                          {(action.cost.SP ?? 0).toLocaleString("en")} ل.س
                         </span>
                       ) : null}
                     </div>
