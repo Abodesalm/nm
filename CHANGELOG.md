@@ -3,6 +3,22 @@
 > Appended to at the end of every session. Read at the start of every session.
 > Format per entry: date, what changed, files touched, next.
 
+## 2026-08-06 — Same-day-only delete limit for storage actions (opt-in per user)
+
+**What changed:**
+- New storage permission **`action_delete_same_day_only`** ("حذف الحركات في نفس اليوم فقط"). When ON for a user, they may only delete a storage action **on the day it was recorded** — after midnight it's locked for them permanently. Left off (the default), nothing changes, so the limit applies only to the users an admin deliberately marks.
+- This key is a **RESTRICTION, not a grant** — the first of its kind in the catalog. It gets its own guard (`requireDeletableToday` in `storageActions.ts`) and is never routed through `permissionGuard`, whose fallback is grant-shaped and would read an unset key the wrong way round. `permissions.ts`'s header now documents this class of key so the next one isn't wired up as a grant by mistake.
+- Enforced on **both** delete entry points (the دخل/خرج log and the item profile), immediately after the existing direction gate. The UI mirrors it — the trash icon becomes a disabled lock with an Arabic tooltip on out-of-window rows — but the server check is the guarantee.
+- **Super admins always bypass it.** Users with `full` storage access deliberately do NOT: "full" says what they may reach, this flag says how long they may undo it, and an admin switching it on means it.
+
+**"Which day" is the day it was RECORDED, not `action.date`:** the date field is user-entered and can be backdated, so it would both block someone from undoing a mistake they just typed and let someone unlock an old action by typing today's date. The recorded moment is decoded from the action's `_id` (ObjectIds carry their creation time) — no schema change, no migration, and the same answer on client and server via the new shared `objectIdDate()`/`isSameLocalDay()` helpers in `utils.ts`.
+
+**Files touched:** `src/lib/permissions.ts` (new key + header note), `src/lib/utils.ts` (`objectIdDate`, `isSameLocalDay`), `src/lib/storageActions.ts` (`requireDeletableToday`), `src/app/api/storage/actions/route.ts`, `src/app/api/storage/[id]/actions/route.ts`, `src/app/(dashboard)/storage/actions/page.tsx`, `src/app/(dashboard)/storage/[id]/page.tsx`.
+
+**Verification:** `npx tsc --noEmit` clean; `npm run build` succeeds. Live, against a scratch item seeded with actions whose `_id` timestamps and `date` fields were deliberately mismatched: limited user deleting a 3-days-old action (whose `date` field claimed today) → 403 in Arabic, on both the global and per-item routes; same user deleting a today-recorded action (whose `date` field claimed last week) → 200; a user without the flag deleting an equally old action → 200; a super admin carrying the flag → 200 (bypass). All three pages render 200 for the limited user. Test users, scratch item, and its History logs cleaned up afterward.
+
+**Note (unchanged, deliberate):** deleting a whole item (`item_delete`) still cascades every action regardless of age — the limit is scoped to action deletion as asked. Worth revisiting if `item_delete` is ever granted to a same-day-limited user.
+
 ## 2026-07-30 (2) — Storage action cost display was USD, should be SP
 
 - Fixed two spots showing an action's cost as `$76.92` instead of the SP-primary convention (`money-and-treasury` skill): the دخل/خرج log table (`storage/actions/page.tsx`) and the item profile's action card list (`storage/[id]/page.tsx`). Both now show `1,000,000 ل.س`, reading `cost.SP` instead of `cost.USD`.

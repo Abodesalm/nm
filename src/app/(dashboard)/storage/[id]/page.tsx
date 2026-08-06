@@ -2,6 +2,8 @@
 
 import { useState, useEffect, useCallback } from "react";
 import { useParams, useRouter } from "next/navigation";
+import { useSession } from "next-auth/react";
+import { objectIdDate, isSameLocalDay } from "@/lib/utils";
 import { PageSpinner } from "@/components/shared/Spinner";
 import { StatusBadge } from "@/components/shared/StatusBadge";
 import { ConfirmDialog } from "@/components/shared/ConfirmDialog";
@@ -21,6 +23,7 @@ import {
   FileDown,
   StickyNote,
   MoreHorizontal,
+  Lock,
 } from "lucide-react";
 import { downloadXLSX } from "@/lib/exportXLSX";
 
@@ -48,6 +51,15 @@ const GOAL_AR: Record<string, string> = {
 export default function StorageItemPage() {
   const { id } = useParams();
   const router = useRouter();
+  const { data: session } = useSession();
+
+  // A RESTRICTION flag, not a grant: when set, this user may only delete an
+  // action on the day it was recorded. Mirrors requireDeletableToday() —
+  // the UI lock is convenience, the server check is the guarantee.
+  const sameDayDeleteOnly =
+    !(session?.user as any)?.isSuperAdmin &&
+    (session?.user as any)?.permissions?.find((p: any) => p.section === "storage")
+      ?.actions?.action_delete_same_day_only === true;
 
   const [item, setItem] = useState<any>(null);
   const [defaultExchange, setDefaultExchange] = useState(15000);
@@ -548,6 +560,14 @@ export default function StorageItemPage() {
                 icon: Package,
               };
               const Icon = meta.icon;
+              // Same-day-only users lose the delete button once the action's
+              // own day is over (server enforces it too).
+              const lockedByDay =
+                sameDayDeleteOnly &&
+                !isSameLocalDay(
+                  objectIdDate(String(action._id), action.date),
+                  new Date(),
+                );
               return (
                 <div
                   key={action._id}
@@ -709,9 +729,15 @@ export default function StorageItemPage() {
                     )}
                   </div>
                   <button
+                    disabled={lockedByDay}
+                    title={
+                      lockedByDay
+                        ? "الحذف مسموح في نفس اليوم الذي سُجّلت فيه الحركة فقط"
+                        : "حذف الحركة"
+                    }
                     onClick={(e) => {
                       e.stopPropagation();
-                      setConfirmDeleteAction(action._id);
+                      if (!lockedByDay) setConfirmDeleteAction(action._id);
                     }}
                     style={{
                       width: 28,
@@ -719,22 +745,23 @@ export default function StorageItemPage() {
                       borderRadius: 7,
                       border: "none",
                       background: "transparent",
-                      color: "#ef4444",
-                      cursor: "pointer",
+                      color: lockedByDay ? "var(--text-muted)" : "#ef4444",
+                      cursor: lockedByDay ? "not-allowed" : "pointer",
+                      opacity: lockedByDay ? 0.55 : 1,
                       display: "flex",
                       alignItems: "center",
                       justifyContent: "center",
                       flexShrink: 0,
                     }}
-                    onMouseEnter={(e) =>
-                      (e.currentTarget.style.background =
-                        "rgba(239,68,68,0.08)")
-                    }
+                    onMouseEnter={(e) => {
+                      if (!lockedByDay)
+                        e.currentTarget.style.background = "rgba(239,68,68,0.08)";
+                    }}
                     onMouseLeave={(e) =>
                       (e.currentTarget.style.background = "transparent")
                     }
                   >
-                    <Trash2 size={13} />
+                    {lockedByDay ? <Lock size={13} /> : <Trash2 size={13} />}
                   </button>
                 </div>
               );

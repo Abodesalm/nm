@@ -9,6 +9,11 @@
  *
  * Enforced by permissionGuard(section, level, action?) in api-factory.ts.
  * This catalog is the single source of truth for the users-settings UI.
+ *
+ * NOTE: a few keys are RESTRICTIONS rather than grants — turning them ON takes
+ * a capability away instead of adding one, and they are enforced by their own
+ * dedicated guard, never by permissionGuard's grant-shaped fallback. They are
+ * marked with a comment below (currently: storage `action_delete_same_day_only`).
  */
 
 export interface PermissionAction {
@@ -39,6 +44,9 @@ export const SECTION_ACTIONS: Record<string, PermissionAction[]> = {
     { key: "item_add", label: "إضافة عنصر" },
     { key: "item_edit", label: "تعديل عنصر" },
     { key: "item_delete", label: "حذف عنصر" },
+    // A RESTRICTION, not a grant: when ON, this user can only delete an action
+    // on the same day it was recorded (see requireDeletableToday).
+    { key: "action_delete_same_day_only", label: "حذف الحركات في نفس اليوم فقط" },
     { key: "income_access", label: "الوصول إلى صفحة الدخل" },
     { key: "outcome_access", label: "الوصول إلى صفحة الخرج" },
   ],

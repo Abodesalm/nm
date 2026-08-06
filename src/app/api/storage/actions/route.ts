@@ -7,6 +7,7 @@ import {
   addStorageActionToItem,
   deleteStorageActionFromItem,
   requireDirectionAccess,
+  requireDeletableToday,
   isIncreasingAction,
   ApiError,
   INCREASING_TYPES,
@@ -211,6 +212,9 @@ export async function DELETE(req: NextRequest) {
       : "out";
     const denied = await requireDirectionAccess(actualDirection);
     if (denied) return denied;
+
+    const tooOld = await requireDeletableToday(action);
+    if (tooOld) return tooOld;
 
     const session = await getServerSession(authOptions);
     const { item: updated } = await deleteStorageActionFromItem(

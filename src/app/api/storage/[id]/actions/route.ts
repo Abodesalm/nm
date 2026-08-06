@@ -5,6 +5,7 @@ import { ok, err } from "@/lib/api-factory";
 import {
   deleteStorageActionFromItem,
   requireDirectionAccess,
+  requireDeletableToday,
   isIncreasingAction,
   ApiError,
 } from "@/lib/storageActions";
@@ -39,6 +40,9 @@ export async function DELETE(
       : "out";
     const denied = await requireDirectionAccess(actualDirection);
     if (denied) return denied;
+
+    const tooOld = await requireDeletableToday(action);
+    if (tooOld) return tooOld;
 
     const session = await getServerSession(authOptions);
     const { item: updated } = await deleteStorageActionFromItem(

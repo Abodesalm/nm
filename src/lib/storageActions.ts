@@ -13,6 +13,7 @@ import { isLoanSettled } from "@/lib/loans";
 import { err } from "@/lib/api-factory";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
+import { objectIdDate, isSameLocalDay } from "@/lib/utils";
 
 /**
  * Core add/delete logic for storage actions — the single source of truth used
@@ -98,6 +99,43 @@ export async function requireDirectionAccess(direction: "in" | "out" | null) {
   if (direction === "in") return hasIncome ? null : err("Forbidden — action not allowed", 403);
   if (direction === "out") return hasOutcome ? null : err("Forbidden — action not allowed", 403);
   return hasIncome && hasOutcome ? null : err("Forbidden — action not allowed", 403);
+}
+
+/**
+ * The "same day only" delete limit (حذف الحركات في نفس اليوم فقط).
+ *
+ * This permission key is a RESTRICTION, not a grant: when it is explicitly
+ * `true` for a user, they may only delete an action that was recorded TODAY —
+ * once midnight passes, that action is locked for them forever. Left unset (or
+ * false) it means no limit, so existing users keep their current behavior and
+ * only the people an admin deliberately marks are limited.
+ *
+ * Super admins are never limited. Note this deliberately does NOT exempt users
+ * with full section access — "full" says what they may reach, this flag says
+ * how long they may undo it, and an admin turning it on means it.
+ *
+ * "Recorded today" comes from the action's _id (ObjectIds carry their creation
+ * moment — no schema change or migration needed), NEVER from `action.date`,
+ * which is user-entered: someone backdating a movement they forgot to log must
+ * still be able to fix it the same day they typed it.
+ */
+export async function requireDeletableToday(action: any) {
+  const session = await getServerSession(authOptions);
+  if (!session) return err("Unauthorized", 401);
+
+  const user = session.user as any;
+  if (user.isSuperAdmin) return null;
+
+  const perm = user.permissions?.find((p: any) => p.section === "storage");
+  if (perm?.actions?.action_delete_same_day_only !== true) return null;
+
+  const createdAt = objectIdDate(String(action?._id ?? ""), action?.date);
+  if (isSameLocalDay(createdAt, new Date())) return null;
+
+  return err(
+    "لا يمكن حذف حركة من يوم سابق — الحذف مسموح في نفس اليوم الذي سُجّلت فيه فقط",
+    403,
+  );
 }
 
 /** Natural direction of a non-"other" type, or null if unknown (used to validate page-locked submissions). */

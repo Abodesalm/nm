@@ -34,6 +34,32 @@ export function calcMoney(
   }
 }
 
+// ─── Record-age helpers (shared by client and server) ───────────────────────
+
+/**
+ * When a Mongo document/subdocument was actually CREATED, decoded from its
+ * ObjectId (first 4 bytes = unix seconds). Works on the client, where all we
+ * have is the id string — so the "same day?" answer is identical on both sides.
+ *
+ * Use this instead of a user-entered `date` field whenever the rule is about
+ * when something was *recorded*: `date` can be backdated by whoever typed it.
+ */
+export function objectIdDate(id: string, fallback?: string | Date | null) {
+  if (/^[0-9a-fA-F]{24}$/.test(id)) {
+    return new Date(parseInt(id.slice(0, 8), 16) * 1000);
+  }
+  return fallback ? new Date(fallback) : new Date();
+}
+
+/** Same calendar day in LOCAL time — so "after midnight" means a real midnight. */
+export function isSameLocalDay(a: Date, b: Date) {
+  return (
+    a.getFullYear() === b.getFullYear() &&
+    a.getMonth() === b.getMonth() &&
+    a.getDate() === b.getDate()
+  );
+}
+
 // Seniority — how long an employee has been in the company
 export function seniorityParts(hireDate: Date | string) {
   const start = new Date(hireDate);
